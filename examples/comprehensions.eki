@@ -1,0 +1,60 @@
+# Dict and Set Comprehensions Example
+
+# Set comprehension - basic
+nums = [1, 2, 3, 4, 5]
+squares = {x * x for x in nums}
+print(f"Squares: {squares}")
+
+# Set comprehension with condition
+evens = [2, 4, 6, 8, 10]
+even_cubes = {x * x * x for x in evens if x > 4}
+print(f"Cubes of evens > 4: {even_cubes}")
+
+# Set comprehension from range
+small_odds = {x for x in 0..10 if x % 2 == 1}
+print(f"Odd numbers 0-9: {small_odds}")
+
+# Dict comprehension - basic
+items = [1, 2, 3]
+squared_dict = {x: x * x for x in items}
+print(f"Number to square: {squared_dict}")
+
+# Dict comprehension with condition
+numbers = [1, 2, 3, 4, 5, 6, 7, 8]
+even_map = {x: x * 10 for x in numbers if x % 2 == 0}
+print(f"Even numbers times 10: {even_map}")
+
+# Dict with string keys
+words = ["cat", "dog", "bird", "fish"]
+word_lengths = {w: len(w) for w in words}
+print(f"Word lengths: {word_lengths}")
+
+# Dict from range
+countdown = {x: x * x for x in 1..=5}
+print(f"Countdown squares: {countdown}")
+
+# Set deduplication
+dupes = [1, 1, 2, 2, 3, 3, 3]
+unique = {x for x in dupes}
+print(f"Unique values: {unique}")
+
+# Complex expressions
+data = [1, 2, 3, 4, 5]
+complex_set = {x * 2 + 1 for x in data if x > 2}
+print(f"Complex set: {complex_set}")
+
+# Dict with transformations
+values = [10, 20, 30]
+str_map = {x: str(x) for x in values}
+print(f"Number to string: {str_map}")
+
+# Nested expression in dict
+base = [1, 2, 3]
+doubled_map = {x: x * 2 for x in base}
+print(f"Doubled: {doubled_map}")
+
+# Using comprehension result
+filtered = {x for x in 1..=20 if x % 3 == 0}
+count = len(filtered)
+print(f"Multiples of 3 from 1-20: {filtered}")
+print(f"Count: {count}")

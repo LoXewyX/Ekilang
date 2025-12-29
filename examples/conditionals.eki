@@ -1,0 +1,20 @@
+x = 0
+if false {
+    x = 1
+} elif true {
+    x = 2
+} else {
+    x = 3
+}
+
+print(x)
+
+# Implementing a simple if-elif-else statement to test the functionality
+x = 0
+if x < 0 {
+    print("Negative number")
+} elif x == 0 {
+    print("Zero")
+} else {
+    print("Positive number")
+}

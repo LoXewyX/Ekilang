@@ -1,0 +1,69 @@
+fn add_greet_method(cls) {
+    fn greet(self) {
+        return f"Hello from {self.__class__.__name__}!"
+    }
+    cls.greet = greet
+    return cls
+}
+
+fn singleton(cls) {
+    instance = none
+    fn get_instance() {
+        if instance is none {
+            instance = cls()
+        }
+        return instance
+    }
+    return get_instance
+}
+
+@add_greet_method
+class Person {
+    fn __init__(self, name) {
+        self.name = name
+    }
+    
+    fn __str__(self) {
+        return f"Person({self.name})"
+    }
+}
+
+fn count_calls(func) {
+    counts = [0]
+    fn wrapper(x) {
+        counts[0] = counts[0] + 1
+        print(f"Call #{counts[0]}")
+        return func(x)
+    }
+    return wrapper
+}
+
+fn validate_positive(func) {
+    fn wrapper(x) {
+        if x < 0 {
+            print("Error: negative input")
+            return none
+        }
+        return func(x)
+    }
+    return wrapper
+}
+
+@count_calls
+@validate_positive
+fn square(x) {
+    return x * x
+}
+
+print("=== Class and Multiple Decorators Demo ===")
+print()
+
+print("1. Class decorator (@add_greet_method):")
+p = Person("Alice")
+print(p.greet())
+print()
+
+print("2. Multiple decorators stacked:")
+print("square(5) =", square(5))
+print("square(3) =", square(3))
+print("square(-2) =", square(-2))

@@ -1,0 +1,42 @@
+# Null Operators Example
+# Demonstrates null-coalescing (??) and null-safe attribute (?.) operators
+
+# Null-coalescing operator (??) - returns the right side if left is none
+default_name = none ?? "Anonymous"
+print(f"Using default: {default_name}")
+
+user_name = "Alice"
+name = user_name ?? "Anonymous"
+print(f"User name: {name}")
+
+# Chaining null-coalescing
+a = none
+b = none
+c = "Fallback"
+result = a ?? b ?? c
+print(f"Chained result: {result}")
+
+# Null-safe attribute operator (?.) - returns none if object is none
+data = none
+value = data?.name
+print(f"Value from none: {value}")
+
+# With actual object (using a lambda to create object-like behavior)
+person = { "name": "Bob", "age": 30 }
+person_name = person["name"]
+print(f"Person name: {person_name}")
+
+# Combining both operators
+maybe_user = none
+display_name = maybe_user?.name ?? "Guest"
+print(f"Display name: {display_name}")
+
+# With numbers
+config = none
+timeout = config?.timeout ?? 5000
+print(f"Timeout: {timeout}")
+
+# Multiple null-safe accesses
+obj = none
+deeply_nested = obj?.child?.grandchild
+print(f"Deeply nested: {deeply_nested}")

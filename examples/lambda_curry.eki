@@ -1,0 +1,86 @@
+# Basic currying: sum(3)(2)
+sum = (a) => (b) => a + b
+print("=== Basic Currying ===")
+print(f"sum(3)(2) = {sum(3)(2)}")
+
+# Currying with partial application
+add_five = sum(5)
+print(f"add_five(10) = {add_five(10)}")
+
+# Triple currying
+multiply_add = (x) => (y) => (z) => (x * y) + z
+print()
+print("=== Triple Currying ===")
+print(f"multiply_add(2)(3)(4) = {multiply_add(2)(3)(4)}")
+
+# Currying with different operations
+multiply = (a) => (b) => a * b
+subtract = (a) => (b) => a - b
+divide   = (a) => (b) => a / b
+
+print()
+print("=== Multiple Operations ===")
+print(f"multiply(4)(5) = {multiply(4)(5)}")
+print(f"subtract(10)(3) = {subtract(10)(3)}")
+print(f"divide(20)(4) = {divide(20)(4)}")
+
+# Storing curried functions in a list
+operations = [
+    (a) => (b) => a + b,
+    (a) => (b) => a * b,
+    (a) => (b) => a - b
+]
+
+print()
+print("=== Curried Functions in Collections ===")
+print(f"add: {operations[0](5)(3)}")
+print(f"multiply: {operations[1](5)(3)}")
+print(f"subtract: {operations[2](5)(3)}")
+
+# Function composition with currying
+compose   = (f) => (g) => (x) => f(g(x))
+double    = (x) => x * 2
+increment = (x) => x + 1
+
+print()
+print("=== Function Composition ===")
+print(f"compose(double)(increment)(5) = {compose(double)(increment)(5)}")
+
+# Higher-order curried function
+apply_twice = (f) => (x) => f(f(x))
+add_one     = (x) => x + 1
+
+print()
+print("=== Higher-Order Functions ===")
+print(f"apply_twice(add_one)(10) = {apply_twice(add_one)(10)}")
+
+# Currying with closures
+make_multiplier = (factor) => (x) => factor * x
+times_two       = make_multiplier(2)
+times_three     = make_multiplier(3)
+times_ten       = make_multiplier(10)
+
+print()
+print("=== Currying with Closures ===")
+print(f"times_two(5) = {times_two(5)}")
+print(f"times_three(5) = {times_three(5)}")
+print(f"times_ten(5) = {times_ten(5)}")
+
+# Currying with string operations
+concat      = (a) => (b) => f"{a}{b}"
+greet       = concat("Hello, ")
+greet_world = greet("World")
+
+print()
+print("=== String Operations ===")
+print(f"greet_world = {greet_world}")
+print(f"concat('Hi, ')('Alice') = {concat('Hi, ')('Alice')}")
+
+# Nested currying with conditionals
+max_val = (a) => (b) => a if a > b else b
+min_val = (a) => (b) => a if a < b else b
+
+print()
+print("=== Currying with Conditionals ===")
+print(f"max_val(7)(3) = {max_val(7)(3)}")
+print(f"min_val(7)(3) = {min_val(7)(3)}")

@@ -1,0 +1,83 @@
+# String and Sequence Slicing Examples
+
+# Basic string indexing
+s = "Hello World"
+print(f"First character: {s[0]}")
+print(f"Last character: {s[-1]}")
+
+# Basic slicing - substring
+hello = s[0:5]
+world = s[6:11]
+print(f"Substring [0:5]: {hello}")
+print(f"Substring [6:11]: {world}")
+
+# Slice with only start (from start to end)
+from_six = s[6:]
+print(f"From index 6: {from_six}")
+
+# Slice with only stop (from beginning)
+to_five = s[:5]
+print(f"To index 5: {to_five}")
+
+# Slice with step (every nth character)
+every_other = s[::2]
+print(f"Every other char [::2]: {every_other}")
+
+# Reverse a string
+reversed = s[::-1]
+print(f"Reversed [::-1]: {reversed}")
+
+# Complex slicing patterns
+numbers = "0123456789"
+even_indices = numbers[::2]
+odd_indices = numbers[1::2]
+backwards_evens = numbers[::-2]
+print(f"Even indices: {even_indices}")
+print(f"Odd indices: {odd_indices}")
+print(f"Backwards evens: {backwards_evens}")
+
+# Unpacking from slices
+s2 = "AB"
+first, second = s2[0:2]
+print(f"Unpacked: {first}, {second}")
+
+# Slicing with expressions
+start = 3
+end = 7
+slice_result = numbers[start:end]
+print(f"numbers[{start}:{end}] = {slice_result}")
+
+# String operations on slices
+prefix = s[0:5]
+suffix = s[6:11]
+combined = prefix + " " + suffix
+print(f"Combined: {combined}")
+
+repeated = s[0:2] * 3
+print(f"Repeated slice: {repeated}")
+
+# List slicing
+lst = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+print(f"List: {lst}")
+print(f"lst[2:7]: {lst[2:7]}")
+print(f"lst[::2]: {lst[::2]}")
+print(f"lst[::-1]: {lst[::-1]}")
+
+# Tuple slicing
+coords = (10, 20, 30, 40, 50)
+first_three = coords[0:3]
+print(f"First three coords: {first_three}")
+
+# Chained slicing
+text1 = "ABCDEFGH"
+mid = text1[2:6]
+nested_slice = mid[1:3]
+print(f"Chained slice: {nested_slice}")
+
+# Variable swapping with slicing
+text = "ABCDEFGH"
+left = text[0:4]
+right = text[4:8]
+print(f"Left half: {left}, Right half: {right}")
+left, right = (right, left)
+print(f"Swapped: left={left}, right={right}")

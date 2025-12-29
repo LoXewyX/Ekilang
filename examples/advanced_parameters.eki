@@ -1,0 +1,103 @@
+# Advanced Function Parameters Demo
+# Showcasing *args, **kwargs, and default values
+
+print("=== Default Parameters ===")
+print()
+
+fn greet(name, greeting = "Hello", punctuation = "!") {
+    f"{greeting}, {name}{punctuation}"
+}
+
+print(greet("Alice"))
+print(greet("Bob", "Hi"))
+print(greet("Charlie", "Hey", "!!!"))
+print()
+
+print("=== Variable Positional Arguments (*args) ===")
+print()
+
+fn sum_all(*numbers) {
+    total = 0
+    for n in numbers {
+        total = total + n
+    }
+    total
+}
+
+print(f"sum_all(1, 2, 3) = {sum_all(1, 2, 3)}")
+print(f"sum_all(10, 20, 30, 40) = {sum_all(10, 20, 30, 40)}")
+print()
+
+fn make_tuple(first, second, *rest) {
+    tuple_result = (first, second, rest)
+    tuple_result
+}
+
+result = make_tuple(1, 2, 3, 4, 5)
+print(f"make_tuple(1, 2, 3, 4, 5) = {result}")
+print()
+
+print("=== Variable Keyword Arguments (**kwargs) ===")
+print()
+
+fn create_config(**settings) {
+    count = len(settings)
+    print(f"Received {count} settings")
+    settings
+}
+
+config = create_config(debug = true, port = 8080)
+print(f"Config keys: {list(config.keys())}")
+print()
+
+print("=== Combining All Parameter Types ===")
+print()
+
+fn advanced_function(required, optional = "default", *args, **kwargs) {
+    print(f"Required: {required}")
+    print(f"Optional: {optional}")
+    print(f"Args count: {len(args)}")
+    print(f"Kwargs count: {len(kwargs)}")
+}
+
+print("Call 1:")
+advanced_function("value")
+print()
+
+print("Call 2:")
+advanced_function("value", "custom")
+print()
+
+print("Call 3:")
+advanced_function("value", "custom", 1, 2, 3)
+print()
+
+print("Call 4:")
+advanced_function("value", "custom", 1, 2, a = 10, b = 20)
+print()
+
+print("=== Type Annotations with Advanced Parameters ===")
+print()
+
+fn typed_function(x: int, y: int = 10, *rest: int) -> int {
+    total = x + y
+    for n in rest {
+        total = total + n
+    }
+    total
+}
+
+print(f"typed_function(5) = {typed_function(5)}")
+print(f"typed_function(5, 20) = {typed_function(5, 20)}")
+print(f"typed_function(5, 20, 1, 2, 3) = {typed_function(5, 20, 1, 2, 3)}")
+print()
+
+fn create_typed_config(**settings: str) {
+    count = len(settings)
+    print(f"Received {count} typed settings")
+    settings
+}
+
+config = create_typed_config(host = "localhost", port = "8080")
+print(f"Config keys: {list(config.keys())}")
+print()

@@ -1,0 +1,52 @@
+# Basic block lambda
+double = (x) => { x * 2 }
+print(double(5))  # Output: 10
+
+# Block lambda with multiple statements
+factorial = (n) => {
+  result = 1
+  for i in [1, 2, 3, 4, 5] {
+    result *= i
+  }
+  result
+}
+print(factorial(5))  # Output: 120
+
+# Block lambda with control flow
+max_val = (a, b) => {
+  if a > b {
+    a
+  } else {
+    b
+  }
+}
+print(max_val(3, 7))  # Output: 7
+
+# Block lambda with loops and conditionals
+sum_evens = (arr) => {
+  total = 0
+  for v in arr {
+    if v % 2 == 0 {
+      total += v
+    }
+  }
+  total
+}
+print(sum_evens([1, 2, 3, 4, 5, 6]))  # Output: 12
+
+# Higher-order functions
+apply_twice = (f, x) => {
+  f(f(x))
+}
+inc = (n) => { n + 1 }
+print(apply_twice(inc, 5))  # Output: 7
+
+# Lambdas in data structures
+operations = [
+  (x) => { x + 1 },
+  (x) => { x * 2 },
+  (x) => { x * x }
+]
+print(operations[0](5))  # Output: 6
+print(operations[1](5))  # Output: 10
+print(operations[2](5))  # Output: 25

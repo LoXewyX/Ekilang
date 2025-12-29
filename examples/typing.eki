@@ -1,0 +1,32 @@
+fn add(a: int, b: int) -> int {
+  a + b
+}
+
+fn multiply(x: int, y: int) -> int {
+  x * y
+}
+
+fn greet(name: str) -> str {
+  "Hello, " + name + "!"
+}
+
+result1: int = add(5, 3)
+result2: int = multiply(4, 7)
+message: str = greet("World")
+
+print("5 + 3 =", result1)
+print("4 * 7 =", result2)
+print(message)
+
+async fn fetch_user(id: int) -> str {
+  "User #" + str(id)
+}
+
+async fn main() {
+  user = await fetch_user(42)
+  user
+}
+
+use asyncio
+user_info = asyncio.run(main())
+print(user_info)

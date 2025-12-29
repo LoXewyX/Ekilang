@@ -1,0 +1,18 @@
+use asyncio
+
+async fn greet(name) {
+  "Hello, " + name
+}
+
+async fn compute() {
+  42
+}
+
+async fn main() {
+  greeting = await greet("World")
+  result = await compute()
+  print(greeting)
+  print(result)
+}
+
+asyncio.run(main())

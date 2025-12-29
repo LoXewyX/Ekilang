@@ -1,0 +1,53 @@
+x, y = (10, 20)
+print(f"x = {x}, y = {y}")
+
+a, b, c = [1, 2, 3]
+print(f"List: {a}, {b}, {c}")
+
+fn getCoords() {
+    (100, 200)
+}
+px, py = getCoords()
+print(f"Coords: ({px}, {py})")
+
+first, last = 1..=2
+print(f"Range values: {first}, {last}")
+
+h, e = "Hi"
+print(f"Chars: '{h}', '{e}'")
+
+fn calculate(x, y) {
+    sum_val = x + y
+    product = x * y
+    result = (sum_val, product)
+    result
+}
+s, p = calculate(5, 10)
+print(f"Sum: {s}, Product: {p}")
+
+num1 = 100
+num2 = 200
+print(f"Before swap: num1={num1}, num2={num2}")
+num1, num2 = (num2, num1)
+print(f"After swap: num1={num1}, num2={num2}")
+
+point1 = (1, 2)
+point2 = (3, 4)
+x1, y1 = point1
+x2, y2 = point2
+print(f"Point 1: ({x1}, {y1})")
+print(f"Point 2: ({x2}, {y2})")
+
+min_val, max_val = (0, 100)
+print(f"Range: {min_val} to {max_val}")
+
+r, g, b = (255, 128, 64)
+print(f"RGB color: ({r}, {g}, {b})")
+
+fn createPairs() {
+    [(1, "one"), (2, "two"), (3, "three")]
+}
+
+pairs = createPairs()
+num, word = pairs[0]
+print(f"First pair: {num} -> {word}")

@@ -1,0 +1,29 @@
+use examples::math_utils { square as lib_square, double, triple }
+use .::utils::helpers { greet, format_number }
+
+print("=== Ekilang Import System Demo ===")
+print()
+
+print("1. Absolute import from lib/:")
+x = lib_square(6)
+print("  examples::math_utils::square(6) =", x)
+print()
+
+print("2. Relative import from current directory (.::):")
+msg = greet("World")
+print(" ", msg)
+formatted = format_number(100)
+print(" ", formatted)
+print()
+
+print("3. Relative import from subdirectory (.::subdir::):")
+y = double(8)
+z = triple(8)
+print("  .::utils::math_utils::double(8) =", y)
+print("  .::utils::math_utils::triple(8) =", z)
+print()
+
+print("4. Combining absolute and relative imports:")
+result = lib_square(double(3))
+final = format_number(result)
+print("  square(double(3)) =", final)

@@ -1,0 +1,6 @@
+use .::var2 { name2, file2 }
+
+print("1", __name__)
+print("1", __file__)
+print("2", name2)
+print("2", file2)

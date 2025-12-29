@@ -1,0 +1,61 @@
+x = 10
+y = 3
+
+x += 5
+print(f"x += 5: {x}")
+
+x -= 2
+print(f"x -= 2: {x}")
+
+x *= 2
+print(f"x *= 2: {x}")
+
+x /= 4
+print(f"x /= 4: {x}")
+
+x %= 5
+print(f"x %= 5: {x}")
+
+s1 = "Hello"
+s2 = "World"
+greeting = s1 + " " + s2
+print(f"Concatenation: {greeting}")
+
+s = "ab"
+repeated = s * 3
+print(f"String repetition: {repeated}")
+
+msg = "Hi"
+msg += "!"
+msg += "!"
+msg += "!"
+print(f"String += : {msg}")
+
+str_rep = "x"
+str_rep *= 5
+print(f"String *= : {str_rep}")
+
+lst1 = [1, 2]
+lst2 = [3, 4]
+combined = lst1 + lst2
+print(f"List concatenation: {combined}")
+
+numbers = [5, 10]
+doubled = numbers * 2
+print(f"List repetition: {doubled}")
+
+arr = [7]
+arr += [8, 9]
+print(f"List +=: {arr}")
+
+items = [0]
+items *= 3
+print(f"List *= : {items}")
+
+complex_str = "["
+complex_str += "1,2"
+complex_str += "]"
+print(f"Complex string: {complex_str}")
+
+mixed = [1] + [2] * 2 + [3]
+print(f"Mixed operations: {mixed}")

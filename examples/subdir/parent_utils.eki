@@ -1,0 +1,7 @@
+fn get_message() {
+    return "Hello from parent directory!"
+}
+
+fn add(a, b) {
+    return a + b
+}

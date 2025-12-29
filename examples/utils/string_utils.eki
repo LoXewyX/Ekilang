@@ -1,0 +1,4 @@
+fn reverse_string(s) {
+    # simple reverse using slicing
+    s[::-1]
+}

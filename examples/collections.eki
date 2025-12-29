@@ -1,0 +1,48 @@
+fn describe_collection(item: str) -> str {
+  "Collection: " + item
+}
+
+tuple_demo = (1, "hello", 99)
+list_demo = [10, 20, 30]
+dict_demo = {"name": "Alice", "age": "30", "city": "NYC"}
+set_demo = {1, 2, 3, 4, 5}
+
+print("=== Tuples ===")
+print(tuple_demo)
+print("First:", tuple_demo[0])
+print("Second:", tuple_demo[1])
+
+print("=== Casting ===")
+num = 42
+num_str = num as str
+num_float = num as float
+print("Integer:", num)
+print("As string:", num_str)
+print("As float:", num_float)
+
+print("=== Lists ===")
+print("List:", list_demo)
+print("Length:", len(list_demo))
+
+print("=== Dictionaries ===")
+print("Dict:", dict_demo)
+print("Name:", dict_demo["name"])
+print("Age:", dict_demo["age"])
+
+print("=== Sets ===")
+print("Set:", set_demo)
+print("Has 3?", 3 in set_demo)
+print("Has 10?", 10 in set_demo)
+
+point = (5, 10)
+points_dict = {
+  "origin": (0, 0),
+  "a": (1, 2),
+  "b": (3, 4)
+}
+
+print("=== Nested Structures ===")
+print("Point:", point)
+print("Points dict:", points_dict)
+print("Point at 'a':", points_dict["a"])
+print("X coord:", points_dict["a"][0])

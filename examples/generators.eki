@@ -1,0 +1,25 @@
+fn gen() {
+  yield 1
+  yield 2
+  yield 3
+}
+
+sumv = 0
+for v in gen() {
+  sumv += v
+}
+print(sumv)
+
+fn gen2(n) {
+  i = 0
+  while i < n {
+    yield i
+    i += 1
+  }
+}
+
+vals = []
+for v in gen2(5) {
+  vals = vals + [v]
+}
+print(vals)

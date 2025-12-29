@@ -1,0 +1,68 @@
+fn uppercase_decorator(func) {
+    fn wrapper(arg) {
+        result = func(arg)
+        return result.upper()
+    }
+    return wrapper
+}
+
+fn repeat_decorator(times) {
+    fn decorator(func) {
+        fn wrapper() {
+            results = []
+            i = 0
+            while i < times {
+                results.append(func())
+                i = i + 1
+            }
+            return results
+        }
+        return wrapper
+    }
+    return decorator
+}
+
+fn logger(func) {
+    fn wrapper(x) {
+        print(f"Calling {func.__name__} with argument: {x}")
+        result = func(x)
+        print(f"Result: {result}")
+        return result
+    }
+    return wrapper
+}
+
+@uppercase_decorator
+fn greet(name) {
+    return f"hello, {name}!"
+}
+
+@repeat_decorator(3)
+fn say_hi() {
+    return "Hi there!"
+}
+
+@logger
+fn double(x) {
+    return x * 2
+}
+
+print("=== Decorator Demo ===")
+print()
+
+print("1. Simple decorator (@uppercase_decorator):")
+msg = greet("alice")
+print(msg)
+print()
+
+print("2. Decorator with arguments (@repeat_decorator(3)):")
+results = say_hi()
+for r in results {
+    print(" ", r)
+}
+print()
+
+print("3. Logger decorator:")
+result = double(21)
+print("Final result:", result)
+

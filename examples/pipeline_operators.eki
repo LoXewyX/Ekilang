@@ -1,0 +1,167 @@
+# Ekilang supports both forward (|>) and backward (<|) pipe operators
+# for elegant function composition and data transformation
+
+print("=== Forward Pipe Operator |> ===")
+print()
+
+# Basic forward piping: data flows left to right
+fn double(x) { x * 2 }
+fn add_ten(x) { x + 10 }
+fn square(x) { x * x }
+
+value = 5
+result1 = value |> double                # 10
+result2 = value |> double |> add_ten     # 20
+result3 = value |> double |> add_ten |> square  # 400
+
+print(f"5 |> double = {result1}")
+print(f"5 |> double |> add_ten = {result2}")
+print(f"5 |> double |> add_ten |> square = {result3}")
+print()
+
+# Forward pipe with builtin functions
+numbers = [1, 2, 3, 4, 5]
+total = numbers |> sum
+count = numbers |> len
+text = "hello world"
+length = text |> len
+
+print(f"[1,2,3,4,5] |> sum = {total}")
+print(f"[1,2,3,4,5] |> len = {count}")
+print(f"\"hello world\" |> len = {length}")
+print()
+
+print("=== Backward Pipe Operator <| ===")
+print()
+
+# Backward piping: function flows left to right, data comes from right
+result4 = double <| 7                     # 14
+result5 = add_ten <| double <| 3          # 16
+
+print(f"double <| 7 = {result4}")
+print(f"add_ten <| double <| 3 = {result5}")
+print()
+
+print("=== Data Transformation Pipeline ===")
+print()
+
+# Define transformation functions
+fn filter_evens(nums) {
+    [n for n in nums if n % 2 == 0]
+}
+
+fn map_square(nums) {
+    [n * n for n in nums]
+}
+
+fn keep_large(nums) {
+    [n for n in nums if n > 20]
+}
+
+# Process data through a pipeline
+data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+print(f"Original data: {data}")
+
+# Traditional nested approach (harder to read)
+result_nested = sum(keep_large(map_square(filter_evens(data))))
+print(f"Nested calls: {result_nested}")
+
+# Pipeline approach (reads left to right, easy to follow)
+result_pipeline = data
+    |> filter_evens
+    |> map_square
+    |> keep_large
+    |> sum
+
+print(f"Pipeline: {result_pipeline}")
+print()
+
+print("=== String Processing Pipeline ===")
+print()
+
+fn to_upper(s) { s.upper() }
+fn add_exclamation(s) { s + "!" }
+fn wrap_quotes(s) { "\"" + s + "\"" }
+
+message = "hello"
+processed = message
+    |> to_upper
+    |> add_exclamation
+    |> wrap_quotes
+
+print(f"Message pipeline: {processed}")
+print()
+
+print("=== Mixed Pipeline Operations ===")
+print()
+
+# You can mix both operators with parentheses
+fn triple(x) { x * 3 }
+fn halve(x) { x / 2 }
+
+mixed1 = halve <| (6 |> triple)          # halve(triple(6)) = halve(18) = 9
+mixed2 = 8 |> triple |> halve            # halve(triple(8)) = halve(24) = 12
+
+print(f"halve <| (6 |> triple) = {mixed1}")
+print(f"8 |> triple |> halve = {mixed2}")
+print()
+
+print("=== Real-World Example: Data Analysis ===")
+print()
+
+# Simulating a data processing workflow
+raw_data = [10, 15, 20, 25, 30, 35, 40, 45, 50]
+
+fn remove_outliers(nums) {
+    # Keep values between 15 and 45
+    [n for n in nums if n >= 15 and n <= 45]
+}
+
+fn normalize(nums) {
+    # Scale to 0-1 range
+    min_val = min(nums)
+    max_val = max(nums)
+    range_val = max_val - min_val
+    [(n - min_val) / range_val for n in nums]
+}
+
+print(f"Raw data: {raw_data}")
+
+cleaned = raw_data |> remove_outliers
+print(f"After removing outliers: {cleaned}")
+
+scaled = cleaned |> normalize
+print(f"After normalization: {scaled}")
+
+average = scaled |> sum
+final_avg = average / len(scaled)
+print(f"Average of normalized data: {final_avg}")
+print()
+
+print("=== Multi-Line Pipeline Example ===")
+print()
+
+# Simplified multi-line pipeline example
+fn replace_fn(s: str, input_str: str, out: str) -> str {
+    return s.replace(input_str, out)
+}
+
+result = replace_fn("hello world", "world", "!")
+print(result)
+
+print()
+
+print("=== Enhanced Multi-Line Pipeline Example ===")
+print()
+
+# Enhanced multi-line pipeline example
+fn capitalize_and_replace(s: str, target: str, replacement: str) -> str {
+    s.upper().replace(target.upper(), replacement.upper())
+}
+
+result = "hello world"
+    |> (s) => capitalize_and_replace(s, "world", "universe")
+    |> (s) => "Result: " + s
+    |> print
+
+print()

@@ -1,0 +1,163 @@
+# Practical Decorator Patterns for Real-World Use Cases
+
+# 1. Simple Counter - Count function calls
+fn count_calls(func) {
+    state = [0]  # Use list to store state in closure
+    fn wrapper(x) {
+        state[0] = state[0] + 1
+        print(f"Call #{state[0]}: calling {func.__name__}({x})")
+        result = func(x)
+        print(f"  Result: {result}")
+        return result
+    }
+    return wrapper
+}
+
+@count_calls
+fn double(x) {
+    return x * 2
+}
+
+
+# 2. Type Validation - Ensure correct argument types
+fn validate_positive(func) {
+    fn wrapper(x) {
+        if x <= 0 {
+            print(f"Error: {func.__name__} requires positive input, got {x}")
+            return none
+        }
+        return func(x)
+    }
+    return wrapper
+}
+
+@validate_positive
+fn square(x) {
+    return x * x
+}
+
+
+# 3. Safe Return - Provide default value on error
+fn safe_default(default_val) {
+    fn decorator(func) {
+        fn wrapper(x) {
+            if x is none {
+                return default_val
+            }
+            result = func(x)
+            if result is none {
+                return default_val
+            }
+            return result
+        }
+        return wrapper
+    }
+    return decorator
+}
+
+@safe_default(0)
+fn safe_divide(x) {
+    if x == 0 {
+        return none
+    }
+    return 100 / x
+}
+
+
+# 4. Timing Decorator - Message on execution
+fn timing(func) {
+    fn wrapper(x) {
+        print(f"Starting {func.__name__}({x})...")
+        result = func(x)
+        print(f"Completed {func.__name__}")
+        return result
+    }
+    return wrapper
+}
+
+@timing
+fn slow_operation(n) {
+    sum = 0
+    i = 0
+    while i < n {
+        sum = sum + i
+        i = i + 1
+    }
+    return sum
+}
+
+
+# 5. Retry Logic - Automatically retry on failure
+fn retry_once(func) {
+    fn wrapper(x) {
+        result = func(x)
+        if result is none {
+            print(f"Retrying {func.__name__}({x})...")
+            result = func(x)
+        }
+        return result
+    }
+    return wrapper
+}
+
+@retry_once
+fn sometimes_fails(x) {
+    # Simulated operation that works on second attempt
+    if x < 5 {
+        print("  (failed on first attempt)")
+        return none
+    }
+    return x * 2
+}
+
+
+# 6. Chaining - Apply multiple transformations
+fn add_prefix(text) {
+    fn decorator(func) {
+        fn wrapper(x) {
+            result = func(x)
+            return f"{text} {result}"
+        }
+        return wrapper
+    }
+    return decorator
+}
+
+@add_prefix("Result:")
+fn greet(name) {
+    return f"Hello, {name}!"
+}
+
+
+# Demonstration
+print("=== Practical Decorator Patterns ===\n")
+
+print("1. Call Counter Decorator:")
+double(5)
+double(3)
+print()
+
+print("2. Type Validation:")
+print("square(4) =", square(4))
+print("square(-2):")
+invalid = square(-2)
+print()
+
+print("3. Safe Default:")
+print("safe_divide(10) =", safe_divide(10))
+print("safe_divide(0) =", safe_divide(0), "(returned default)")
+print()
+
+print("4. Timing Decorator:")
+slow_result = slow_operation(50)
+print(f"Result: {slow_result}")
+print()
+
+print("5. Retry Logic:")
+print("sometimes_fails(3):", sometimes_fails(3))
+print("sometimes_fails(5):", sometimes_fails(5))
+print()
+
+print("6. Chaining Transformations:")
+greeting = greet("Alice")
+print(greeting)

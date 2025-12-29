@@ -1,0 +1,49 @@
+# Class Inheritance Example
+
+class Animal {
+    fn __init__(self, name) {
+        self.name = name
+    }
+    
+    fn speak(self) {
+        return "Some sound"
+    }
+    
+    fn info(self) {
+        return t"{self.name} is an animal"
+    }
+}
+
+class Dog(Animal) {
+    fn speak(self) {
+        return "Woof!"
+    }
+}
+
+class Cat(Animal) {
+    fn speak(self) {
+        return "Meow!"
+    }
+    
+    fn purr(self) {
+        return t"{self.name} is purring"
+    }
+}
+
+# Create instances
+dog = Dog("Buddy")
+cat = Cat("Whiskers")
+
+# Methods from parent class work
+print(dog.info())
+print(cat.info())
+
+# Overridden methods
+print(t"{dog.name} says: {dog.speak()}")
+print(t"{cat.name} says: {cat.speak()}")
+
+# Child-specific methods
+print(cat.purr())
+
+# The dog instance has the name attribute from the parent
+print(t"Dog's name: {dog.name}")

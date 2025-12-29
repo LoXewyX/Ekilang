@@ -1,0 +1,74 @@
+# Template Strings (t-strings) Example
+# Demonstrates template string interpolation using t"..." syntax
+
+# Basic interpolation
+name = "Alice"
+greeting = t"Hello, {name}!"
+print(greeting)
+
+# Multiple expressions
+x = 5
+y = 10
+math = t"{x} + {y} = {x + y}"
+print(math)
+
+# Expression evaluation
+a = 3
+b = 4
+result = t"Area of rectangle: {a * b}"
+print(result)
+
+# Function calls in templates
+items = [1, 2, 3, 4, 5]
+info = t"List has {len(items)} items"
+print(info)
+
+# Complex expressions
+price = 20
+quantity = 3
+total = t"Total: {price * quantity}"
+print(total)
+
+# Nested templates
+user = "Bob"
+inner = t"user {user}"
+outer = t"Current {inner}"
+print(outer)
+
+# With booleans and none
+active = true
+data = none
+status = t"Active: {active}, Data: {data}"
+print(status)
+
+# Using with ranges and list comprehensions
+nums = [1, 2, 3, 4, 5]
+doubled = [x * 2 for x in nums]
+summary = t"Original: {nums}, Doubled: {doubled}"
+print(summary)
+
+# Combining with other features
+value = 42
+msg = t"The answer is {value}" ?? "No answer"
+print(msg)
+
+# Template strings work with f-strings too
+f_example = f"Using f-string: {name}"
+t_example = t"Using t-string: {name}"
+print(f_example)
+print(t_example)
+
+# Multi-part interpolation
+first = "John"
+last = "Doe"
+age = 30
+profile = t"{first} {last}, Age: {age}"
+print(profile)
+
+# Escape sequences work
+escaped = t"Line 1\nLine 2"
+print(escaped)
+
+# Empty template
+empty = t""
+print(t"Empty:'{empty}'")

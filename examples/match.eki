@@ -1,0 +1,30 @@
+# Match statement example
+# Demonstrates pattern matching with guards and wildcards
+
+value = 7
+
+match value {
+    1 => print("The value is one")
+    2 | 3 | 4 => {
+        print("The value is small (2, 3, or 4)")
+    }
+    5 if value > 4 => print("The value is five with guard")
+    6 | 7 | 8 if value < 10 => {
+        print("The value is medium (6, 7, or 8) with guard")
+    }
+    _ if value > 10 => print("The value is big")
+    _ => {
+        print("The value is something else")
+    }
+}
+
+print("First match done")
+
+# Another example with different types
+animal = "cat"
+print("Animal assigned")
+
+match animal {
+    1 => print("Number one")
+    _ => print("Something else")
+}

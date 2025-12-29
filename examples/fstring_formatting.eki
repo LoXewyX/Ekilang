@@ -1,0 +1,94 @@
+price = 95
+print(f"Price: {price:.2f}")
+
+success_rate = 0.856
+print(f"Success: {success_rate:.1%}")
+
+name = "Alice"
+score = 42
+print(f"{name:<10} | {score:>5}")
+
+title = "RESULTS"
+print(f"{title:^20}")
+
+population = 1234567
+print(f"Population: {population:,}")
+
+amount = 1234.5678
+print(f"Amount: {amount:>12,.2f}")
+
+num = 255
+print(f"Binary: {num:b}")
+print(f"Hex: {num:x}")
+print(f"Hex (upper): {num:X}")
+
+big_num = 12345.6789
+print(f"Scientific: {big_num:e}")
+
+x = 10
+print(f"{{x}} = {x}")
+print(f"{{ nested }}")
+
+width = 1920
+height = 1080
+print(f"{width=}, {height=}")
+
+pi = 3.14159265
+print(f"{pi=:.2f}")
+
+age = 25
+status = f"Status: {'Adult' if age >= 18 else 'Minor'}"
+print(status)
+
+text = "hello world"
+print(f"Uppercase: {text.upper()}")
+
+user = {"name": "Bob", "age": 30}
+items = ["apple", "banana", "cherry"]
+print(f"User: {user['name']}, Item: {items[0]}")
+
+code = 42
+print(f"Code: {code:05}")
+
+positive = 100
+negative = -50
+print(f"{positive:+} and {negative:+}")
+
+x2 = 10
+y2 = 20
+print(f"Sum: {x2 + y2}, Product: {x2 * y2}, Ratio: {x2 / y2:.2f}")
+
+num2 = 7
+print(f"[{num2:5}]")
+
+name2 = "Charlie"
+age2 = 35
+salary = 75000.50
+rating = 0.92
+print(f"{name2:<12} | Age: {age2:>3} | Salary: {salary:>10,.2f} | Rating: {rating:.1%}")
+
+class Point {
+    fn __init__(self, x, y) {
+        self.x = x
+        self.y = y
+    }
+}
+p = Point(100, 200)
+print(f"Point: ({p.x}, {p.y})")
+
+data = {"coords": [10, 20, 30]}
+print(f"First coord: {data['coords'][0]}")
+
+a = 5
+b = 3
+print(f"{a} / {b} = {a / b:.3f}")
+
+prices = [19.99, 29.99, 39.99]
+for item_price in prices {
+    formatted = f"Price: {item_price:>6.2f}"
+    print(formatted)
+}
+
+print("\nAll f-string formatting features working!")
+
+

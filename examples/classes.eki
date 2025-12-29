@@ -1,0 +1,145 @@
+# Simple class with constructor
+class Person {
+    fn __init__(self, name, age) {
+        self.name = name
+        self.age = age
+    }
+    
+    fn greet(self) {
+        return t"Hello, I'm {self.name} and I'm {self.age} years old"
+    }
+}
+
+alice = Person("Alice", 30)
+print(alice.greet())
+
+# Class with methods and state
+class Counter {
+    fn __init__(self) {
+        self.count = 0
+    }
+    
+    fn increment(self) {
+        self.count = self.count + 1
+    }
+    
+    fn decrement(self) {
+        self.count = self.count - 1
+    }
+    
+    fn get_value(self) {
+        return self.count
+    }
+}
+
+counter = Counter()
+counter.increment()
+counter.increment()
+counter.increment()
+print(t"Counter value: {counter.get_value()}")
+
+# Class with computed properties
+class Rectangle {
+    fn __init__(self, width, height) {
+        self.width = width
+        self.height = height
+    }
+    
+    fn area(self) {
+        return self.width * self.height
+    }
+    
+    fn perimeter(self) {
+        return 2 * (self.width + self.height)
+    }
+}
+
+rect = Rectangle(5, 3)
+print(t"Rectangle area: {rect.area()}")
+print(t"Rectangle perimeter: {rect.perimeter()}")
+
+# Class inheritance
+class Animal {
+    fn __init__(self, name) {
+        self.name = name
+    }
+    
+    fn speak(self) {
+        return "Some generic sound"
+    }
+}
+
+class Dog(Animal) {
+    fn speak(self) {
+        return "Woof!"
+    }
+    
+    fn fetch(self) {
+        return t"{self.name} is fetching the ball"
+    }
+}
+
+class Cat(Animal) {
+    fn speak(self) {
+        return "Meow!"
+    }
+}
+
+dog = Dog("Buddy")
+cat = Cat("Whiskers")
+
+print(t"{dog.name} says: {dog.speak()}")
+print(t"{cat.name} says: {cat.speak()}")
+print(dog.fetch())
+
+# Multiple instances
+class Point {
+    fn __init__(self, x, y) {
+        self.x = x
+        self.y = y
+    }
+    
+    fn distance_from_origin(self) {
+        return (self.x * self.x + self.y * self.y) as int
+    }
+}
+
+p1 = Point(3, 4)
+p2 = Point(5, 12)
+
+print(t"P1 distance: {p1.distance_from_origin()}")
+print(t"P2 distance: {p2.distance_from_origin()}")
+
+# Class with default parameters
+class Config {
+    fn __init__(self, host = "localhost", port = 8080) {
+        self.host = host
+        self.port = port
+    }
+    
+    fn url(self) {
+        return t"http://{self.host}:{self.port}"
+    }
+}
+
+default_config = Config()
+custom_config = Config("example.com", 3000)
+
+print(t"Default: {default_config.url()}")
+print(t"Custom: {custom_config.url()}")
+
+# Class with special methods
+class Book {
+    fn __init__(self, title, author) {
+        self.title = title
+        self.author = author
+    }
+    
+    fn __str__(self) {
+        return t"{self.title} by {self.author}"
+    }
+}
+
+book = Book("1984", "George Orwell")
+book_str = str(book)
+print(book_str)

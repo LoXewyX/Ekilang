@@ -1,0 +1,7 @@
+use ..::parent_utils { get_message, add }
+
+msg = get_message()
+print(msg)
+
+result = add(10, 20)
+print("add(10, 20) =", result)

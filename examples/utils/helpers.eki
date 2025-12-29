@@ -1,0 +1,7 @@
+fn greet(name) {
+    f"Hello, {name}!"
+}
+
+fn format_number(n) {
+    f"Number: {n}"
+}

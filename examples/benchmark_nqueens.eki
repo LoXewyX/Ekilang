@@ -1,0 +1,40 @@
+# N-Queens Benchmark for Ekilang
+# Solves the N-Queens problem for N=12 and counts all solutions
+
+fn is_safe(queens, row, col) {
+    i = 0
+    while i < row {
+        qcol = queens[i]
+        if (qcol == col or abs(qcol - col) == row - i) {
+            return false
+        }
+        i += 1
+    }
+    return true
+}
+
+fn solve_nqueens(n, row, queens, count) {
+    if row == n {
+        count[0] += 1
+        return
+    }
+    col = 0
+    while col < n {
+        if is_safe(queens, row, col) {
+            queens[row] = col
+            solve_nqueens(n, row + 1, queens, count)
+        }
+        col += 1
+    }
+}
+
+fn nqueens_bench(n) {
+    queens = [0] * n
+    count = [0]
+    solve_nqueens(n, 0, queens, count)
+    return count[0]
+}
+
+N = 12
+result = nqueens_bench(N)
+print(f"N-Queens solutions for N={N}: {result}")
