@@ -1,14 +1,16 @@
+"""Tests for vararg and kwarg type annotations in Ekilang language."""
+
 from pathlib import Path
 import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def run(code: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)

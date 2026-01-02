@@ -7,7 +7,7 @@ from ekilang.runtime import execute
 
 def test_simple_function_decorator():
     """Test basic function decorator"""
-    src = '''
+    src = """
 fn uppercase(func) {
     fn wrapper(text) {
         result = func(text)
@@ -22,18 +22,18 @@ fn greet(name) {
 }
 
 msg = greet("bob")
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["msg"] == "HELLO, BOB"
 
 
 def test_decorator_with_arguments():
     """Test decorator that takes arguments"""
-    src = '''
+    src = """
 fn repeat(times) {
     fn decorator(func) {
         fn wrapper() {
@@ -57,19 +57,19 @@ fn say_hi() {
 
 output = say_hi()
 count = len(output)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["count"] == 3
     assert ns["output"] == ["Hi", "Hi", "Hi"]
 
 
 def test_multiple_decorators():
     """Test stacking multiple decorators"""
-    src = '''
+    src = """
 fn add_one(func) {
     fn wrapper(x) {
         return func(x) + 1
@@ -91,19 +91,19 @@ fn get_value(x) {
 }
 
 result = get_value(5)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # Decorators are applied bottom-up: double(5) = 10, then add_one(10) = 11
     assert ns["result"] == 11
 
 
 def test_class_decorator():
     """Test decorator on a class"""
-    src = '''
+    src = """
 fn add_method(cls) {
     fn new_method(self) {
         return "decorated!"
@@ -121,18 +121,18 @@ class MyClass {
 
 obj = MyClass()
 msg = obj.new_method()
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["msg"] == "decorated!"
 
 
 def test_decorator_preserves_function():
     """Test that decorator can call original function"""
-    src = '''
+    src = """
 fn logger(func) {
     fn wrapper(x) {
         result = func(x)
@@ -147,19 +147,19 @@ fn add_five(x) {
 }
 
 result = add_five(3)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # add_five(3) = 8, then logger multiplies by 10 = 80
     assert ns["result"] == 80
 
 
 def test_decorator_with_call_syntax():
     """Test decorator using call syntax @dec()"""
-    src = '''
+    src = """
 fn make_multiplier(factor) {
     fn decorator(func) {
         fn wrapper(x) {
@@ -176,18 +176,18 @@ fn get_number(n) {
 }
 
 result = get_number(7)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["result"] == 21  # 7 * 3
 
 
 def test_multiple_class_decorators():
     """Test multiple decorators on a class"""
-    src = '''
+    src = """
 fn add_x(cls) {
     cls.x = 10
     return cls
@@ -208,10 +208,10 @@ class Point {
 
 p = Point()
 total = Point.x + Point.y
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["total"] == 30

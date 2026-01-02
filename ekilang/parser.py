@@ -5,428 +5,85 @@ Converts token stream into Abstract Syntax Tree (AST).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+from .types import (
+    Statement,
+    ExprNode,
+    Module,
+    Let,
+    Fn,
+    Class,
+    If,
+    Match,
+    Case,
+    While,
+    For,
+    Use,
+    UseItem,
+    Break,
+    Continue,
+    Yield,
+    Return,
+    AsyncFn,
+    Assign,
+    AugAssign,
+    ExprStmt,
+    Name,
+    BinOp,
+    UnaryOp,
+    TernaryOp,
+    Pipe,
+    Cast,
+    Range,
+    Await,
+    Int,
+    Float,
+    Str,
+    Bool,
+    NoneLit,
+    ListLit,
+    DictLit,
+    Lambda,
+    FString,
+    TString,
+    Call,
+    Index,
+    Attr,
+    Slice,
+    Starred,
+    TupleLit,
+    SetLit,
+    ListComp,
+    DictComp,
+    SetComp,
+)
 
 from .lexer import Token, Lexer
 
-
-# AST Nodes
-@dataclass
-class Module:
-    """Root AST node representing a module."""
-
-    body: List
-
-
-@dataclass
-class Let:
-    """Variable declaration with optional type annotation."""
-
-    name: str | List[str]  # Single name or list of names for unpacking
-    value: object
-    type_annotation: Optional[str] = None
-
-
-@dataclass
-class Fn:
-    """Function definition with parameters, types, and decorators."""
-
-    name: str
-    params: List[str]
-    param_types: List[Optional[str]]
-    return_type: Optional[str]
-    body: List
-    defaults: List[object] = None  # Default values for parameters
-    vararg: Optional[str] = None  # *args parameter name
-    vararg_type: Optional[str] = None  # Type annotation for *args
-    kwarg: Optional[str] = None  # **kwargs parameter name
-    kwarg_type: Optional[str] = None  # Type annotation for **kwargs
-    decorators: List[object] = None  # Decorator expressions
-
-
-@dataclass
-class Class:
-    """Class definition with bases and decorators."""
-
-    name: str
-    bases: List[str]  # Base class names
-    body: List  # Class body (methods, etc.)
-    decorators: List[object] = None  # Decorator expressions
-
-
-@dataclass
-class If:
-    """Conditional statement with test, consequence, and alternative."""
-
-    test: object
-    conseq: List
-    alt: Optional[List]
-
-
-@dataclass
-class Match:
-    """Match statement with subject and cases."""
-
-    subject: object
-    cases: List
-
-
-@dataclass
-class Case:
-    """Case in match with pattern, guard, and body."""
-
-    pattern: object
-    guard: Optional[object]
-    body: List
-
-
-@dataclass
-class While:
-    """While loop with test condition and body."""
-
-    test: object
-    body: List
-
-
-@dataclass
-class For:
-    """For loop with target, iterator, and body."""
-
-    target: object
-    iter: object
-    body: List
-
-
-@dataclass
-class Return:
-    """Return statement with optional value."""
-
-    value: Optional[object]
-
-
-@dataclass
-class Break:
-    """Break statement to exit loops."""
-
-
-@dataclass
-class Continue:
-    """Continue statement to skip to next loop iteration."""
-
-
-@dataclass
-class Yield:
-    """Yield statement with optional value (for generators)."""
-
-    value: Optional[object]
-
-
-@dataclass
-class ExprStmt:
-    """Expression statement for standalone expressions."""
-
-    value: object
-
-
-@dataclass
-class BinOp:
-    """Binary operation with left operand, operator, and right operand."""
-
-    left: object
-    op: str
-    right: object
-
-
-@dataclass
-class UnaryOp:
-    """Unary operation with operator and operand."""
-
-    op: str
-    operand: object
-
-
-@dataclass
-class Call:
-    """Function call with arguments and keyword arguments."""
-
-    func: object
-    args: List[object]
-    kwargs: List[tuple[str, object]] = None  # keyword arguments as (name, value) pairs
-
-
-@dataclass
-class Index:
-    """Indexing or slicing operation."""
-
-    value: object
-    index: object
-
-
-@dataclass
-class Slice:
-    """Slice object with start, stop, and step."""
-
-    start: object
-    stop: object
-    step: object
-
-
-@dataclass
-class Attr:
-    """Attribute access on an object."""
-
-    value: object
-    attr: str
-
-
-@dataclass
-class Name:
-    """Variable name reference."""
-
-    id: str
-
-
-@dataclass
-class Int:
-    """Integer literal."""
-
-    value: int
-
-
-@dataclass
-class Float:
-    """Floating-point literal."""
-
-    value: float
-
-
-@dataclass
-class Str:
-    """String literal."""
-
-    value: str
-
-
-@dataclass
-class Starred:
-    """Starred expression for unpacking (*args)."""
-
-    value: object
-
-
-@dataclass
-class NullCoalesce:
-    """Null coalescing operator (??): return right if left is None."""
-
-    left: object
-    right: object
-
-
-@dataclass
-class NullSafeAttr:
-    """Null-safe attribute access (?.) operator."""
-
-    value: object
-    attr: str
-
-
-@dataclass
-class Bool:
-    """Boolean literal (true/false)."""
-
-    value: bool
-
-
-@dataclass
-class NoneLit:
-    """None literal."""
-
-
-@dataclass
-class Assign:
-    """Assignment statement."""
-
-    target: Name
-    value: object
-
-
-@dataclass
-class AugAssign:
-    """Augmented assignment (+=, -=, etc.)."""
-
-    target: Name
-    op: str
-    value: object
-
-
-@dataclass
-class ListLit:
-    """List literal."""
-
-    elements: List[object]
-
-
-@dataclass
-class DictLit:
-    """Dictionary literal."""
-
-    pairs: List[tuple[object, object]]
-
-
-@dataclass
-class Lambda:
-    """Lambda function (anonymous function)."""
-
-    params: List[str]
-    body: List | None
-    expr: object | None
-
-
-@dataclass
-class FString:
-    """F-string with interpolated expressions and format specifiers."""
-
-    parts: List[str | object]  # Alternating strings and expressions
-    formats: List[str | None]  # Format specifiers for each expression part
-    debug_exprs: List[str | None]  # Debug expressions for x= syntax
-
-
-@dataclass
-class TString:
-    """Template string with interpolated expressions."""
-
-    parts: List[str | object]  # Template string with strings and expressions
-    formats: List[str | None]  # Format specifiers for each expression part
-    debug_exprs: List[str | None]  # Debug expressions for x= syntax
-
-
-@dataclass
-class TernaryOp:
-    """Ternary conditional expression (test if true else false)."""
-
-    test: object
-    if_true: object
-    if_false: object
-
-
-@dataclass
-class Range:
-    """Range expression (.. or ..=)."""
-
-    start: object
-    end: object
-    inclusive: bool  # True for ..=, False for ..
-
-
-@dataclass
-class ListComp:
-    """List comprehension."""
-
-    expr: object
-    target: str
-    iter: object
-    condition: Optional[object]  # Optional if clause
-
-
-@dataclass
-class DictComp:
-    """Dictionary comprehension."""
-
-    key: object
-    value: object
-    target: str
-    iter: object
-    condition: Optional[object]  # Optional if clause
-
-
-@dataclass
-class SetComp:
-    """Set comprehension."""
-
-    expr: object
-    target: str
-    iter: object
-    condition: Optional[object]  # Optional if clause
-
-
-@dataclass
-class UseItem:
-    """Single import item with optional alias."""
-
-    name: str
-    alias: Optional[str]
-
-
-@dataclass
-class Use:
-    """Import statement (use keyword)."""
-
-    module: List[str]  # module path segments (may be empty for direct imports)
-    items: List[UseItem]
-
-
-@dataclass
-class Cast:
-    """Type cast expression."""
-
-    value: object
-    target_type: str
-
-
-@dataclass
-class Pipe:
-    """Pipe operator (|> or <|)."""
-
-    left: object
-    op: str  # '|>' or '<|'
-    right: object
-
-
-@dataclass
-class TupleLit:
-    """Tuple literal."""
-
-    elements: List[object]
-
-
-@dataclass
-class SetLit:
-    """Set literal."""
-
-    elements: List[object]
-
-
-@dataclass
-class AsyncFn:
-    """Async function definition."""
-
-    name: str
-    params: List[str]
-    param_types: List[Optional[str]]
-    return_type: Optional[str]
-    body: List
-    defaults: List[object] = None  # Default values for parameters
-    vararg: Optional[str] = None  # *args parameter name
-    vararg_type: Optional[str] = None  # Type annotation for *args
-    kwarg: Optional[str] = None  # **kwargs parameter name
-    kwarg_type: Optional[str] = None  # Type annotation for **kwargs
-    decorators: List[object] = None  # Decorator expressions
-
-
-@dataclass
-class Await:
-    """Await expression for async operations."""
-
-    value: object
+# Operator constants
+AUG_ASSIGN_OPS = {
+    "+=",
+    "-=",
+    "*=",
+    "**=",
+    "/=",
+    "//=",
+    "%=",
+    "&=",
+    "|=",
+    "^=",
+    "<<=",
+    ">>=",
+}
 
 
 class Parser:
     """Recursive descent parser for Ekilang language."""
 
     def __init__(self, tokens: List[Token]) -> None:
-        self.tokens = tokens
-        self.i = 0
+        self.tokens: List[Token] = tokens
+        self.i: int = 0
 
     def peek(self) -> Token:
         """Look at current token without consuming it."""
@@ -450,7 +107,7 @@ class Parser:
 
     def parse(self) -> Module:
         """Parse token stream into Module AST."""
-        body = []
+        body: List[Statement] = []
         while self.peek().type != "EOF":
             if self.accept("NL") or self.accept(";"):
                 continue
@@ -459,24 +116,7 @@ class Parser:
 
     def statement(
         self,
-    ) -> (
-        Class
-        | Use
-        | For
-        | Break
-        | Continue
-        | Yield
-        | Return
-        | AsyncFn
-        | Fn
-        | If
-        | Match
-        | While
-        | Assign
-        | AugAssign
-        | Let
-        | ExprStmt
-    ):
+    ) -> Statement:
         """Parse a statement (including decorated statements)."""
         decorators = self._parse_decorators()
         tok = self.peek()
@@ -524,10 +164,10 @@ class Parser:
         expr = self.expr()
         return self._parse_assignment_or_expr_stmt(expr)
 
-    def _parse_block_body(self) -> List[object]:
+    def _parse_block_body(self) -> List[Statement]:
         """Parse a `{ ... }` block body and return list of statements."""
         self.match("{")
-        body: List[object] = []
+        body: List[Statement] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
@@ -554,33 +194,36 @@ class Parser:
             return Yield(val)
         return Return(val)
 
-    def _parse_id_stmt(self) -> Assign | AugAssign | None:
+    def _parse_id_stmt(self) -> Let | Assign | AugAssign | None:
         """Parse ID-based statements: assignments, aug-assigns, or unpacking.
         Returns the statement node or None if ID should be re-parsed as expression."""
         save_i = self.i
         name_tok = self.match("ID")
+
+        # Check for type annotation: ID : type = value
+        if self.accept(":"):
+            # After type annotation, skip the type and look for assignment
+            _ = self.parse_type()  # Skip the type annotation
+            # After type annotation, we expect assignment
+            if self.accept("OP", "="):
+                value = self.expr()
+                self.accept("NL")
+                return Let(name_tok.value, value)
+
+            self.i = save_i
+            return None
+
         if self.accept("OP", "="):
             value = self.expr()
             self.accept("NL")
             return Assign(Name(name_tok.value), value)
-        for op in [
-            "+=",
-            "-=",
-            "*=",
-            "**=",
-            "/=",
-            "//=",
-            "%=",
-            "&=",
-            "|=",
-            "^=",
-            "<<=",
-            ">>=",
-        ]:
+
+        for op in AUG_ASSIGN_OPS:
             if self.accept("OP", op):
                 value = self.expr()
                 self.accept("NL")
                 return AugAssign(Name(name_tok.value), op, value)
+
         # Not an assignment, might be unpacking or expression - backtrack
         if self.accept(","):
             self.i = save_i
@@ -588,7 +231,7 @@ class Parser:
         self.i = save_i
         return None
 
-    def _parse_class(self, decorators=None) -> Class:
+    def _parse_class(self, decorators: List[ExprNode] | None = None) -> Class:
         """Parse a class definition."""
         self.match("KW", "class")
         class_name = self.match("ID").value
@@ -608,14 +251,14 @@ class Parser:
         )
 
     def _parse_assignment_or_expr_stmt(
-        self, expr
+        self, expr: ExprNode
     ) -> Let | Assign | AugAssign | ExprStmt:
         """Handle assignment forms and expression statement after an `expr()` parse.
 
         Supports type annotations on names, regular and augmented assignments, and
         falls back to `ExprStmt` when no assignment operator follows.
         """
-        type_annotation = None
+        type_annotation: Optional[str] = None
         if (
             self.peek().type == "OP"
             and self.peek().value == ":"
@@ -624,36 +267,22 @@ class Parser:
             self.match("OP", ":")
             type_annotation = self.parse_type()
 
-        aug_ops = (
-            "=",
-            "+=",
-            "-=",
-            "*=",
-            "**=",
-            "/=",
-            "//=",
-            "%=",
-            "&=",
-            "|=",
-            "^=",
-            "<<=",
-            ">>=",
-        )
-        if self.peek().type == "OP" and self.peek().value in aug_ops:
+        aug_ops_with_assign = {"="} | AUG_ASSIGN_OPS
+        if self.peek().type == "OP" and self.peek().value in aug_ops_with_assign:
             op = self.peek().value
             self.match("OP", op)
             value = self.expr()
             self.accept("NL")
             if op == "=":
                 if type_annotation and isinstance(expr, Name):
-                    return Let(expr.id, value, type_annotation)
+                    return Let(expr.id, value)
                 return Assign(expr, value)
             return AugAssign(expr, op, value)
 
         self.accept("NL")
         return ExprStmt(expr)
 
-    def _parse_async_fn(self, decorators=None) -> AsyncFn:
+    def _parse_async_fn(self, decorators: List[ExprNode] | None = None) -> AsyncFn:
         """Parse an async function definition and return an AsyncFn node."""
         self.match("KW", "async")
         self.match("KW", "fn")
@@ -672,7 +301,7 @@ class Parser:
         if self.accept("OP", "->"):
             return_type = self.parse_type()
         self.match("{")
-        body = []
+        body: List[Statement] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
@@ -695,16 +324,16 @@ class Parser:
             decorators=decorators if decorators else None,
         )
 
-    def _parse_decorators(self) -> List[object]:
+    def _parse_decorators(self) -> List[ExprNode]:
         """Parse leading decorators for a statement and return list of expressions."""
-        decorators: List[object] = []
-        while self.peek().type == "OP" and self.peek().value == "@":
-            self.match("OP", "@")
+        decorators: List[ExprNode] = []
+        while self.peek().type == "@":
+            self.match("@")
             decorators.append(self.expr())
             self.accept("NL")
         return decorators
 
-    def fn_def(self, decorators=None) -> Fn:
+    def fn_def(self, decorators: List[ExprNode] | None = None) -> Fn:
         """Parse a function definition, including params, defaults, types, and body."""
         self.match("KW", "fn")
         name = self.match("ID").value
@@ -718,7 +347,7 @@ class Parser:
         if self.accept("OP", "->"):
             return_type = self.parse_type()
         self.match("{")
-        body = []
+        body: List[Statement] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
@@ -745,9 +374,9 @@ class Parser:
     def if_stmt(self) -> If:
         """Parse an if statement with optional elif and else blocks."""
 
-        def parse_block() -> list:
+        def parse_block() -> List[Statement]:
             self.match("{")
-            body = []
+            body: List[Statement] = []
             while not self.accept("}"):
                 if not self.accept("NL"):
                     body.append(self.statement())
@@ -772,39 +401,37 @@ class Parser:
         self.match("KW", "match")
         subject = self.expr()
         self.match("{")
-        cases = []
+        cases: List[Case] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
             # Parse pattern
             if self.accept("ID", "_"):
-                pattern = None
-            else:
                 patterns = []
+            else:
+                patterns: List[ExprNode] = []
                 patterns.append(self.bit_xor_expr())
                 while self.accept("OP", "|"):
                     patterns.append(self.bit_xor_expr())
-                if len(patterns) == 1:
-                    pattern = patterns[0]
-                else:
-                    pattern = patterns
             # Optional guard
             guard = None
             if self.accept("KW", "if"):
                 guard = self.expr()
             self.match("OP", "=>")
             # Always treat { ... } after => as a block, not as an expression
-            if self.peek().type == "{" or (self.peek().type == "OP" and self.peek().value == "{"):
+            if self.peek().type == "{" or (
+                self.peek().type == "OP" and self.peek().value == "{"
+            ):
                 self.match("{")
-                body = []
+                body: List[Statement] = []
                 while not self.accept("}"):
                     if self.accept("NL"):
                         continue
                     body.append(self.statement())
             else:
                 # Single statement without braces
-                body = [self.statement()]
-            cases.append(Case(pattern, guard, body))
+                body: List[Statement] = [self.statement()]
+            cases.append(Case(patterns, guard, body))
         return Match(subject, cases)
 
     def while_stmt(self) -> While:
@@ -812,7 +439,7 @@ class Parser:
         self.match("KW", "while")
         test = self.expr()
         self.match("{")
-        body = []
+        body: List[Statement] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
@@ -830,15 +457,13 @@ class Parser:
         self.match("KW", "in")
         iterable = self.expr()
         self.match("{")
-        body = []
+        body: List[Statement] = []
         while not self.accept("}"):
             if self.accept("NL"):
                 continue
             body.append(self.statement())
         self.accept("NL")
         # If only one name, keep as Name node for compatibility; else, pass list
-        if len(target) == 1:
-            return For(Name(target[0]), iterable, body)
         return For([Name(name) for name in target], iterable, body)
 
     def use_stmt(self) -> Use:
@@ -847,17 +472,20 @@ class Parser:
         path: List[str] = []
 
         # Handle relative imports (.:: or ..:: or ...::, etc.)
-        if self.peek().type == "OP" and (self.peek().value.startswith(".")):
+        # Check for leading dots (relative imports)
+        if self.peek().type == "." or (
+            self.peek().type == "OP" and self.peek().value.startswith(".")
+        ):
             relative_prefix = ""
             # Handle multi-dot operators like .. and single .
             tok = self.peek()
-            if tok.value == ".":
+            if tok.type == ".":
                 # Single dots collected one at a time
-                while self.peek().type == "OP" and self.peek().value == ".":
+                while self.peek().type == ".":
                     relative_prefix += "."
                     self.i += 1
-            elif tok.value == ".." or tok.value.startswith("."):
-                # Handle .. or other multi-dot operators
+            elif tok.type == "OP" and (tok.value == ".." or tok.value.startswith(".")):
+                # Handle .. or other multi-dot operators (like ...)
                 relative_prefix = tok.value
                 self.i += 1
             path.append(relative_prefix)
@@ -876,7 +504,7 @@ class Parser:
         brace_pending = False
         while True:
             tok = self.peek()
-            if tok.type == "OP" and tok.value in {"::", "."}:
+            if (tok.type == "OP" and tok.value == "::") or tok.type == ".":
                 self.i += 1
                 if self.peek().type == "{":
                     brace_pending = True
@@ -921,11 +549,11 @@ class Parser:
             item_name = path[-1]
         return Use(module=module_path, items=[UseItem(item_name, alias)])
 
-    def expr(self):
+    def expr(self) -> ExprNode:
         """Parse a full expression at the highest precedence level."""
         return self.pipe_expr()
 
-    def pipe_expr(self):
+    def pipe_expr(self) -> ExprNode:
         """Parse pipe expressions with `|>` and `<|` associativity rules."""
         # Handle pipeline operators |> and <|
         # |> is left-associative: data |> f |> g means g(f(data))
@@ -935,8 +563,15 @@ class Parser:
         node = self.cast_expr()
 
         # For |>, use left-associative parsing
-        while self.peek().type == "OP" and self.peek().value == "|>" or (
-            self.accept("NL") and self.peek().type == "OP" and self.peek().value == "|>"):
+        while (
+            self.peek().type == "OP"
+            and self.peek().value == "|>"
+            or (
+                self.accept("NL")
+                and self.peek().type == "OP"
+                and self.peek().value == "|>"
+            )
+        ):
             self.match("OP")
             node = Pipe(left=node, op="|>", right=self.cast_expr())
 
@@ -948,7 +583,7 @@ class Parser:
 
         return node
 
-    def cast_expr(self):
+    def cast_expr(self) -> ExprNode:
         """Parse `as` type cast expressions."""
         node = self.ternary_expr()
         if self.peek().type == "KW" and self.peek().value == "as":
@@ -957,7 +592,7 @@ class Parser:
             return Cast(value=node, target_type=target_type)
         return node
 
-    def ternary_expr(self):
+    def ternary_expr(self) -> ExprNode:
         """Parse ternary conditional expression: `a if cond else b`."""
         # Handle ternary: expr if condition else expr
         node = self.or_expr()
@@ -969,19 +604,15 @@ class Parser:
             return TernaryOp(test=test, if_true=node, if_false=if_false)
         return node
 
-    def or_expr(self):
+    def or_expr(self) -> ExprNode:
         """Parse or expression."""
         node = self.and_expr()
-        # Null-coalescing first (tighter than or)
-        while self.peek().type == "OP" and self.peek().value == "??":
-            self.match("OP", "??")
-            node = NullCoalesce(node, self.and_expr())
         while self.peek().type == "KW" and self.peek().value == "or":
             self.match("KW", "or")
             node = BinOp(node, "or", self.and_expr())
         return node
 
-    def and_expr(self):
+    def and_expr(self) -> ExprNode:
         """Parse and expression."""
         node = self.bit_or_expr()
         while self.peek().type == "KW" and self.peek().value == "and":
@@ -989,7 +620,7 @@ class Parser:
             node = BinOp(node, "and", self.bit_or_expr())
         return node
 
-    def bit_or_expr(self):
+    def bit_or_expr(self) -> ExprNode:
         """Parse bitwise or expression."""
         node = self.bit_xor_expr()
         while self.peek().type == "OP" and self.peek().value == "|":
@@ -997,7 +628,7 @@ class Parser:
             node = BinOp(node, "|", self.bit_xor_expr())
         return node
 
-    def bit_xor_expr(self):
+    def bit_xor_expr(self) -> ExprNode:
         """Parse bitwise xor expression."""
         node = self.bit_and_expr()
         while self.peek().type == "OP" and self.peek().value == "^":
@@ -1005,7 +636,7 @@ class Parser:
             node = BinOp(node, "^", self.bit_and_expr())
         return node
 
-    def bit_and_expr(self):
+    def bit_and_expr(self) -> ExprNode:
         """Parse bitwise and expression."""
         node = self.cmp_expr()
         while self.peek().type == "OP" and self.peek().value == "&":
@@ -1013,18 +644,18 @@ class Parser:
             node = BinOp(node, "&", self.cmp_expr())
         return node
 
-    def cmp_expr(self):
+    def cmp_expr(self) -> ExprNode:
         """Parse comparison expression."""
         node = self.range_expr()
         return self._parse_comparators(node)
 
-    def _parse_comparators(self, left):
+    def _parse_comparators(self, left: ExprNode) -> ExprNode:
         """Parse chained comparison operators following an initial left-side node."""
-        node = left
+        node: ExprNode = left  # type: ignore[assignment]
         while True:
             t = self.peek()
             if t.type == "OP" and t.value in {"==", "!=", ">", "<", ">=", "<="}:
-                op = t.value
+                op: str = t.value
                 self.i += 1
             elif t.type == "KW" and t.value == "is":
                 self.i += 1
@@ -1043,7 +674,7 @@ class Parser:
             node = BinOp(node, op, self.range_expr())
         return node
 
-    def range_expr(self):
+    def range_expr(self) -> ExprNode:
         """Parse range expression (.. or ..=)."""
         node = self.shift_expr()
         if self.peek().type == "OP" and self.peek().value in {"..", "..="}:
@@ -1052,31 +683,31 @@ class Parser:
             return Range(start=node, end=self.shift_expr(), inclusive=inclusive)
         return node
 
-    def shift_expr(self):
+    def shift_expr(self) -> ExprNode:
         """Parse bit shift expression (<<, >>)."""
-        node = self.add_expr()
+        node: ExprNode = self.add_expr()
         while self.peek().type == "OP" and self.peek().value in {"<<", ">>"}:
             self.i += 1
             node = BinOp(node, self.tokens[self.i - 1].value, self.add_expr())
         return node
 
-    def add_expr(self):
+    def add_expr(self) -> ExprNode:
         """Parse addition/subtraction expression."""
-        node = self.power_expr()
+        node: ExprNode = self.power_expr()
         while self.peek().type == "OP" and self.peek().value in {"+", "-"}:
             self.i += 1
             node = BinOp(node, self.tokens[self.i - 1].value, self.power_expr())
         return node
 
-    def mul_expr(self):
+    def mul_expr(self) -> ExprNode:
         """Parse multiplication/division/modulo expression."""
-        node = self.unary_expr()
+        node: ExprNode = self.unary_expr()
         while self.peek().type == "OP" and self.peek().value in {"*", "/", "//", "%"}:
             self.i += 1
             node = BinOp(node, self.tokens[self.i - 1].value, self.unary_expr())
         return node
 
-    def power_expr(self):
+    def power_expr(self) -> ExprNode:
         """Parse power (exponentiation) expression with right-associativity."""
         node = self.mul_expr()
         if self.peek().type == "OP" and self.peek().value == "**":
@@ -1084,7 +715,7 @@ class Parser:
             node = BinOp(node, "**", self.power_expr())
         return node
 
-    def unary_expr(self):
+    def unary_expr(self) -> ExprNode:
         """Parse unary expression (-, not, await)."""
         tok = self.peek()
         if tok.type == "OP" and tok.value == "-":
@@ -1100,7 +731,7 @@ class Parser:
 
     def _parse_interpolated_string(
         self, content: str, tok: Token, string_type: str
-    ) -> tuple[list, list, list]:
+    ) -> Tuple[List[str], List[ExprNode], List[str | None], List[str | None]]:
         """Parse interpolated string (f-string or t-string) content.
 
         Args:
@@ -1109,38 +740,30 @@ class Parser:
             string_type: Either 'f' or 't' for error messages
 
         Returns:
-            Tuple of (parts, formats, debug_exprs)
+            Tuple of (string_parts, exprs, format_specs, debug_exprs)
         """
-        parts = []
-        formats = []
-        debug_exprs = []
+        string_parts: List[str] = []  # Pure string parts
+        exprs: List[ExprNode] = []  # Expression nodes
+        formats: List[str | None] = []  # Format specifiers
+        debug_exprs: List[str | None] = []  # Debug expression strings
         i = 0
+        current_str = ""
 
         while i < len(content):
             brace_start = content.find("{", i)
             if brace_start == -1:
-                if i < len(content):
-                    parts.append(content[i:])
-                    formats.append(None)
-                    debug_exprs.append(None)
+                # No more expressions, collect remaining string
+                current_str += content[i:]
                 break
 
             # Check for escaped braces {{
             if brace_start + 1 < len(content) and content[brace_start + 1] == "{":
-                if brace_start > i:
-                    parts.append(content[i:brace_start] + "{")
-                else:
-                    parts.append("{")
-                formats.append(None)
-                debug_exprs.append(None)
+                current_str += content[i:brace_start] + "{"
                 i = brace_start + 2
                 continue
 
-            # Add string before brace
-            if brace_start > i:
-                parts.append(content[i:brace_start])
-                formats.append(None)
-                debug_exprs.append(None)
+            # Add string before brace to current accumulation
+            current_str += content[i:brace_start]
 
             # Find matching }
             brace_end = content.find("}", brace_start)
@@ -1149,7 +772,12 @@ class Parser:
                     f"Unclosed {{ in {string_type}-string at {tok.line}:{tok.col}"
                 )
 
-            # Parse the content inside {}
+            # Save the string part accumulated so far
+            if current_str or not string_parts:
+                string_parts.append(current_str)
+                current_str = ""
+
+            # Parse the expression inside {}
             expr_str = content[brace_start + 1 : brace_end]
             format_spec, debug_expr_str = self._parse_format_spec(expr_str)
 
@@ -1160,17 +788,19 @@ class Parser:
             expr_parser = Parser(expr_tokens)
             expr = expr_parser.expr()
 
-            parts.append(expr)
+            exprs.append(expr)
             formats.append(format_spec)
             debug_exprs.append(debug_expr_str)
             i = brace_end + 1
 
-        # Handle }} escapes in final processing
-        for idx, part in enumerate(parts):
-            if isinstance(part, str):
-                parts[idx] = part.replace("}}", "}")
+        # Add any remaining string
+        if current_str or not string_parts:
+            string_parts.append(current_str)
 
-        return parts, formats, debug_exprs
+        # Handle }} escapes in final processing
+        string_parts = [p.replace("}}", "}") for p in string_parts]
+
+        return string_parts, exprs, formats, debug_exprs
 
     def _parse_format_spec(self, expr_str: str) -> tuple[str | None, str | None]:
         """Parse format specifier and debug flag from interpolation expression.
@@ -1210,19 +840,27 @@ class Parser:
 
         return format_spec, debug_expr_str
 
-    def _parse_function_params(self):
+    def _parse_function_params(self) -> Tuple[
+        List[str],
+        List[str | None],
+        List[ExprNode | None],
+        str | None,
+        str | None,
+        str | None,
+        str | None,
+    ]:
         """Parse function parameters including *args and **kwargs.
 
         Returns:
             Tuple of (params, param_types, defaults, vararg, vararg_type, kwarg, kwarg_type)
         """
-        params = []
-        param_types = []
-        defaults = []
-        vararg = None
-        vararg_type = None
-        kwarg = None
-        kwarg_type = None
+        params: List[str] = []
+        param_types: List[str | None] = []
+        defaults: List[ExprNode | None] = []
+        vararg: str | None = None
+        vararg_type: str | None = None
+        kwarg: str | None = None
+        kwarg_type: str | None = None
 
         if not self.accept(")"):
             while True:
@@ -1231,9 +869,7 @@ class Parser:
                     if tok.value == "*":
                         self.match("OP", "*")
                         vararg = self.match("ID").value
-                        vararg_type = (
-                            self.parse_type() if self.accept("OP", ":") else None
-                        )
+                        vararg_type = self.parse_type() if self.accept(":") else None
                         if self.accept(")"):
                             break
                         self.match(",")
@@ -1241,9 +877,7 @@ class Parser:
                     if tok.value == "**":
                         self.match("OP", "**")
                         kwarg = self.match("ID").value
-                        kwarg_type = (
-                            self.parse_type() if self.accept("OP", ":") else None
-                        )
+                        kwarg_type = self.parse_type() if self.accept(":") else None
                         if self.accept(")"):
                             break
                         self.match(",")
@@ -1251,7 +885,7 @@ class Parser:
 
                 # Regular parameter
                 param_name = self.match("ID").value
-                param_type = self.parse_type() if self.accept("OP", ":") else None
+                param_type = self.parse_type() if self.accept(":") else None
                 params.append(param_name)
                 param_types.append(param_type)
 
@@ -1272,19 +906,19 @@ class Parser:
 
     def _parse_list_literal_or_comp(self) -> ListComp | ListLit:
         """Parse list literal or list comprehension."""
-        elements: List[object] = []
+        elements: List[ExprNode] = []
         if not self.accept("]"):
             self.accept("NL")
-            first_expr = self.or_expr()
+            first_expr: ExprNode = self.or_expr()
             self.accept("NL")
 
             # Check if this is a list comprehension
             if self.peek().type == "KW" and self.peek().value == "for":
                 self.match("KW", "for")
-                target = self.match("ID").value
+                target: str = self.match("ID").value
                 self.match("KW", "in")
-                iter_expr = self.or_expr()
-                condition = None
+                iter_expr: ExprNode = self.or_expr()
+                condition: Optional[ExprNode] = None
                 if self.peek().type == "KW" and self.peek().value == "if":
                     self.match("KW", "if")
                     condition = self.or_expr()
@@ -1339,7 +973,7 @@ class Parser:
             )
 
         # Check if it's a dict (has :) or set (has , or })
-        if self.accept("OP", ":"):
+        if self.accept(":"):
             first_val = self.or_expr()
             self.accept("NL")
 
@@ -1364,21 +998,21 @@ class Parser:
                 )
 
             # Dict literal
-            pairs: List[tuple[object, object]] = [(first_elem, first_val)]
+            pairs: List[Tuple[ExprNode, ExprNode]] = [(first_elem, first_val)]
             if not self.accept("}"):
                 while True:
-                    self.match(",")
+                    self.accept("NL")
+                    if not self.accept(","):
+                        break
                     self.accept("NL")
                     if self.accept("}"):
-                        break
+                        return DictLit(pairs)
                     key = self.expr()
-                    self.match("OP", ":")
+                    self.match(":")
                     val = self.expr()
                     pairs.append((key, val))
                     self.accept("NL")
-                    if self.accept("}"):
-                        break
-                    self.accept("NL")
+                self.match("}")
             return DictLit(pairs)
 
         # Set literal
@@ -1395,17 +1029,17 @@ class Parser:
                     break
         return SetLit(elements)
 
-    def _parse_call_args(self) -> tuple[list, list | None]:
+    def _parse_call_args(self) -> Tuple[List[ExprNode | Starred], List[Tuple[str, ExprNode]] | None]:
         """Parse function call arguments including *args and **kwargs."""
-        args = []
-        kwargs = []
+        args: List[ExprNode | Starred] = []
+        kwargs: List[Tuple[str, ExprNode]] = []
 
         if not self.accept(")"):
             while True:
                 # Handle splat (star) arguments: *expr
                 if self.peek().type == "OP" and self.peek().value == "*":
                     self.match("OP", "*")
-                    star_expr = self.expr()
+                    star_expr: ExprNode = self.expr()
                     args.append(Starred(star_expr))
                     if self.accept(")"):
                         break
@@ -1417,7 +1051,7 @@ class Parser:
                     save_i = self.i
                     name_tok = self.match("ID")
                     if self.accept("OP", "="):
-                        value = self.expr()
+                        value: ExprNode = self.expr()
                         kwargs.append((name_tok.value, value))
                         if self.accept(")"):
                             break
@@ -1434,26 +1068,25 @@ class Parser:
 
         return args, kwargs if kwargs else None
 
-    def atom(self):
+    def atom(self) -> ExprNode:
         """Parse atomic expression (literals, names, etc)."""
-        tok = self.peek()
+        tok: Token = self.peek()
         if self.accept("INT"):
             return Int(int(tok.value))
         if self.accept("FLOAT"):
-            # Create a float literal
             return Float(float(tok.value))
         if self.accept("STR"):
             return Str(tok.value)
         if self.accept("FSTR"):
-            parts, formats, debug_exprs = self._parse_interpolated_string(
+            string_parts, exprs, formats, debug_exprs = self._parse_interpolated_string(
                 tok.value, tok, "f"
             )
-            return FString(parts, formats, debug_exprs)
+            return FString(string_parts, exprs, formats, debug_exprs)
         if self.accept("TSTR"):
-            parts, formats, debug_exprs = self._parse_interpolated_string(
+            string_parts, exprs, formats, debug_exprs = self._parse_interpolated_string(
                 tok.value, tok, "t"
             )
-            return TString(parts, formats, debug_exprs)
+            return TString(string_parts, exprs, formats, debug_exprs)
         if tok.type == "KW" and tok.value in {"true", "false"}:
             self.i += 1
             return Bool(tok.value == "true")
@@ -1465,7 +1098,7 @@ class Parser:
         if self.accept("{"):
             return self._parse_dict_or_set_literal_or_comp()
         if self.accept("ID"):
-            node = Name(tok.value)
+            node: object = Name(tok.value)
             # Handle all postfix operations: calls, indexing, attribute access
             while True:
                 if self.accept("("):
@@ -1473,10 +1106,7 @@ class Parser:
                     node = Call(node, args, kwargs)
                 elif self.accept("["):
                     node = self._parse_index_or_slice(node)
-                elif self.accept("OP", "?."):
-                    attr_name = self.match("ID").value
-                    node = NullSafeAttr(node, attr_name)
-                elif self.accept("OP", "."):
+                elif self.accept("."):
                     attr_name = self.match("ID").value
                     node = Attr(node, attr_name)
                 else:
@@ -1488,29 +1118,34 @@ class Parser:
             f"Unexpected token {tok.type} {tok.value} at {tok.line}:{tok.col}"
         )
 
-    def _parse_index_or_slice(self, base) -> Index:
+    def _parse_index_or_slice(self, base: Name | Call | Index | Attr) -> Index:
         """Parse `[ ... ]` following a base expression, supporting slices.
         Assumes '[' already consumed. Returns `Index(base, idx_or_slice)`.
         """
         # Leading ':' or '::' -> missing start
-        if self.peek().type == "OP" and self.peek().value in (":", "::"):
+        is_leading_colon = self.peek().type == ":" or (
+            self.peek().type == "OP" and self.peek().value == "::"
+        )
+        if is_leading_colon:
             start = None
-            if self.peek().value == "::":
+            if self.peek().type == "OP" and self.peek().value == "::":
                 self.match("OP", "::")
                 stop = None
                 step = None if self.peek().type == "]" else self.expr()
                 self.match("]")
                 return Index(base, Slice(start, stop, step))
             # Single ':' case
-            self.match("OP", ":")
-            if self.peek().type == "]" or (
-                self.peek().type == "OP" and self.peek().value == ":"
+            self.accept(":")
+            if (
+                self.peek().type == "]"
+                or self.peek().type == ":"
+                or (self.peek().type == "OP" and self.peek().value == "::")
             ):
                 stop = None
             else:
                 stop = self.expr()
             step = None
-            if self.accept("OP", ":"):
+            if self.accept(":"):
                 step = None if self.peek().type == "]" else self.expr()
             self.match("]")
             return Index(base, Slice(start, stop, step))
@@ -1524,15 +1159,17 @@ class Parser:
             step = None if self.peek().type == "]" else self.expr()
             self.match("]")
             return Index(base, Slice(start, stop, step))
-        if self.accept("OP", ":"):
-            if self.peek().type == "]" or (
-                self.peek().type == "OP" and self.peek().value == ":"
+        if self.accept(":"):
+            if (
+                self.peek().type == "]"
+                or self.peek().type == ":"
+                or (self.peek().type == "OP" and self.peek().value == "::")
             ):
                 stop = None
             else:
                 stop = self.expr()
             step = None
-            if self.accept("OP", ":"):
+            if self.accept(":"):
                 step = None if self.peek().type == "]" else self.expr()
             self.match("]")
             return Index(base, Slice(start, stop, step))
@@ -1566,7 +1203,7 @@ class Parser:
         if is_param_seq and is_empty_or_tuple:
             if self.accept("OP", "=>"):
                 if self.accept("{"):
-                    body = []
+                    body: List[Statement] = []
                     while not self.accept("}"):
                         if self.accept("NL"):
                             continue
@@ -1577,7 +1214,7 @@ class Parser:
 
         # Reset and parse as tuple or parenthesized expression
         self.i = save_i
-        elements = []
+        elements: List[ExprNode] = []
         first_expr = self.expr()
         elements.append(first_expr)
 
@@ -1594,9 +1231,9 @@ class Parser:
 
     def parse_type(self) -> str:
         """Parse a type annotation and return as string"""
-        type_parts = []
+        type_parts: list[str] = []
         type_parts.append(self.match("ID").value)
-        while self.accept("OP", "."):
+        while self.accept("."):
             type_parts.append(self.match("ID").value)
         return ".".join(type_parts)
 
@@ -1605,7 +1242,7 @@ class Parser:
 
         Returns a list of variable names if an unpack pattern is present, otherwise None.
         """
-        start_i = self.i
+        start_i: int = self.i
 
         def parse_list(end_token: str) -> list[str] | None:
             names: list[str] = []

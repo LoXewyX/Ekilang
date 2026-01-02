@@ -1,4 +1,4 @@
-use examples::math_utils { square as lib_square, double, triple }
+use examples::utils::math_utils { square as lib_square, double, triple }
 use .::utils::helpers { greet, format_number }
 
 print("=== Ekilang Import System Demo ===")

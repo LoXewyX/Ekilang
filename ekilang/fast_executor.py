@@ -5,12 +5,15 @@ Provides optimized execution path using custom bytecode VM.
 
 from __future__ import annotations
 
-from typing import Any, List, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 import operator
-from ekilang.parser import (
+from .types import (
+    ExprNode,
     Int,
     Float,
     FString,
+    Starred,
+    Statement,
     Str,
     Bool,
     Name,
@@ -27,7 +30,7 @@ from ekilang.parser import (
     Fn,
     Module,
 )
-
+from ._rust_lexer import apply_binop, apply_compare
 
 # Minimal opcode set for benchmark patterns
 LOAD_CONST = "LOAD_CONST"
@@ -52,7 +55,7 @@ BIN_OPS = {
     "%": operator.mod,
 }
 
-CMP_OPS = {
+CMP_OPS: Dict[str, Any] = {
     "<": operator.lt,
     "<=": operator.le,
     ">": operator.gt,
@@ -67,15 +70,15 @@ class FastProgram:
 
     def __init__(
         self,
-        code: List[tuple],
+        code: List[Tuple[str, Any]],
         consts: List[Any],
         names: List[str],
-        functions: Dict[str, Any] = None,
+        functions: Optional[Dict[str, Tuple["FastProgram", List[str]]]] = None,
     ) -> None:
         self.code = code
         self.consts = consts
         self.names = names
-        self.functions = functions or {}
+        self.functions: Dict[str, Tuple["FastProgram", List[str]]] = functions or {}
 
     def is_empty(self) -> bool:
         """Return True if program contains no instructions."""
@@ -90,14 +93,14 @@ class Compiler:
     """Compiles Ekilang AST to custom bytecode."""
 
     def __init__(self) -> None:
-        self.code = []
-        self.consts = []
-        self.names = []
-        self.const_map = {}
-        self.name_map = {}
-        self.functions = {}
+        self.code: List[Tuple[str, Any]] = []
+        self.consts: List[Any] = []
+        self.names: List[str] = []
+        self.const_map: Dict[Any, int] = {}
+        self.name_map: Dict[str, int] = {}
+        self.functions: Dict[str, Tuple[FastProgram, List[str]]] = {}
 
-    def add_const(self, value) -> int:
+    def add_const(self, value: Any) -> int:
         """Add constant to pool and return its index."""
         if value not in self.const_map:
             idx = len(self.consts)
@@ -123,14 +126,38 @@ class Compiler:
         op, _ = self.code[addr]
         self.code[addr] = (op, arg)
 
-    def compile_expr(self, node) -> bool:
+    def compile_expr(self, node: ExprNode | Starred) -> bool:
         """Compile expression node to bytecode. Returns True if compiled, False if unsupported."""
 
         ok = True
 
         # Explicitly reject unsupported expression types
         if isinstance(node, FString):
-            ok = False
+            # Fast path only supports simple concatenation without format/debug
+            if any(node.formats) or any(node.debug_exprs):
+                ok = False
+            else:
+                chunk_count = 0
+                total_chunks = len(node.parts) + len(node.exprs)
+
+                for expr_idx in range(len(node.exprs) + 1):
+                    if expr_idx < len(node.parts):
+                        self.emit(LOAD_CONST, self.add_const(node.parts[expr_idx]))
+                        chunk_count += 1
+                        if chunk_count > 1:
+                            self.emit(BINARY_OP, "+")
+
+                    if expr_idx < len(node.exprs):
+                        if not self.compile_expr(node.exprs[expr_idx]):
+                            ok = False
+                            break
+                        self.emit(CALL, (self.add_name("str"), 1))
+                        chunk_count += 1
+                        if chunk_count > 1:
+                            self.emit(BINARY_OP, "+")
+
+                if ok and total_chunks == 0:
+                    self.emit(LOAD_CONST, self.add_const(""))
 
         elif isinstance(node, Int):
             self.emit(LOAD_CONST, self.add_const(node.value))
@@ -163,9 +190,8 @@ class Compiler:
                 ok = False
 
         elif isinstance(node, Call):
-            # Reject splat or keyword args
-            if (hasattr(node, "has_splat") and node.has_splat) or \
-            (hasattr(node, "keywords") and node.keywords):
+            # Reject keyword args
+            if node.kwargs is not None:
                 ok = False
             else:
                 for arg in node.args:
@@ -174,31 +200,44 @@ class Compiler:
                         break
 
                 if ok:
-                    if hasattr(node.func, "id"):
+                    if isinstance(node.func, Name):
                         func_name = node.func.id
                         self.emit(CALL, (self.add_name(func_name), len(node.args)))
                     else:
                         ok = False  # Attr or complex call not supported
 
         elif isinstance(node, TString):
-            for i, part in enumerate(node.parts):
-                if isinstance(part, str):
-                    self.emit(LOAD_CONST, self.add_const(part))
-                else:
-                    if not self.compile_expr(part):
-                        ok = False
-                        break
-                    self.emit(CALL, (self.add_name("str"), 1))
+            if any(node.formats) or any(node.debug_exprs):
+                ok = False
+            else:
+                chunk_count = 0
+                total_chunks = len(node.parts) + len(node.exprs)
 
-                if i > 0:
-                    self.emit(BINARY_OP, "+")
+                for expr_idx in range(len(node.exprs) + 1):
+                    if expr_idx < len(node.parts):
+                        self.emit(LOAD_CONST, self.add_const(node.parts[expr_idx]))
+                        chunk_count += 1
+                        if chunk_count > 1:
+                            self.emit(BINARY_OP, "+")
+
+                    if expr_idx < len(node.exprs):
+                        if not self.compile_expr(node.exprs[expr_idx]):
+                            ok = False
+                            break
+                        self.emit(CALL, (self.add_name("str"), 1))
+                        chunk_count += 1
+                        if chunk_count > 1:
+                            self.emit(BINARY_OP, "+")
+
+                if ok and total_chunks == 0:
+                    self.emit(LOAD_CONST, self.add_const(""))
 
         else:
             ok = False
 
         return ok
 
-    def compile_stmt(self, node) -> bool:
+    def compile_stmt(self, node: Statement) -> bool:
         """Compile statement node to bytecode. Returns True if compiled, False if unsupported."""
 
         ok = True
@@ -212,7 +251,7 @@ class Compiler:
 
         elif isinstance(node, Assign):
             self.compile_expr(node.value)
-            if hasattr(node.target, "id"):
+            if isinstance(node.target, Name):
                 self.emit(STORE_NAME, self.add_name(node.target.id))
             else:
                 ok = False
@@ -295,10 +334,8 @@ class Compiler:
 
         return ok
 
-    def compile(self, mod) -> Optional[FastProgram]:
+    def compile(self, mod: Module) -> Optional[FastProgram]:
         """Compile entire module to bytecode program."""
-        if not isinstance(mod, Module):
-            return None
 
         for stmt in mod.body:
             if not self.compile_stmt(stmt):
@@ -306,20 +343,6 @@ class Compiler:
 
         self.emit(HALT, None)
         return FastProgram(self.code, self.consts, self.names, self.functions)
-
-
-def compile_simple_loop(mod) -> Optional[FastProgram]:
-    """Compile Ekilang module to fast bytecode if supported.
-
-    Returns:
-        FastProgram if compilation succeeds, None if unsupported features found
-    """
-    try:
-        compiler = Compiler()
-        result = compiler.compile(mod)
-        return result
-    except (TypeError, ValueError, RuntimeError, NotImplementedError):
-        return None  # Fallback on known compilation errors
 
 
 def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]:
@@ -332,24 +355,23 @@ def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Updated namespace after execution
     """
-    stack = []
+    stack: List[Any] = []
     pc = 0
     code = program.code
     consts = program.consts
     names = program.names
-    env = dict(globals_ns)  # Copy to avoid mutation
+    env = globals_ns  # Modify in place
 
     # Add compiled functions to environment
     for func_name, (func_prog, params) in program.functions.items():
-
-        def make_func(prog, param_names):
-            def func(*args) -> Any | None:
+        def make_func(prog: FastProgram, param_names: List[str]) -> Callable[..., Any]:
+            def func(*args: Any) -> Any | None:
                 local_env = dict(env)
                 for i, param in enumerate(param_names):
                     if i < len(args):
                         local_env[param] = args[i]
-                result_env = run_fast(prog, local_env)
-                return result_env.get("__return__", None)
+                run_fast(prog, local_env)
+                return local_env.get("__return__", None)
 
             return func
 
@@ -362,7 +384,7 @@ def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]
         if op == LOAD_CONST:
             stack.append(consts[arg])
         elif op == LOAD_NAME:
-            name = names[arg]
+            name = names[cast(int, arg)]
             if name in env:
                 stack.append(env[name])
             else:
@@ -372,11 +394,11 @@ def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]
         elif op == BINARY_OP:
             b = stack.pop()
             a = stack.pop()
-            stack.append(BIN_OPS[arg](a, b))
+            stack.append(apply_binop(float(a), arg, float(b)))
         elif op == COMPARE_OP:
             b = stack.pop()
             a = stack.pop()
-            stack.append(CMP_OPS[arg](a, b))
+            stack.append(apply_compare(float(a), arg, float(b)))
         elif op == JUMP_IF_FALSE:
             cond = stack.pop()
             if not cond:
@@ -384,7 +406,7 @@ def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]
         elif op == JUMP:
             pc = arg
         elif op == CALL:
-            func_idx, nargs = arg
+            func_idx, nargs = cast(Tuple[int, int], arg)
             func_name = names[func_idx]
             args = [stack.pop() for _ in range(nargs)]
             args.reverse()

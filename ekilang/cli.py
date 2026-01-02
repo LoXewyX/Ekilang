@@ -17,7 +17,7 @@ from .runtime import execute, CodeGen
 
 
 def run_source(
-    src: str, dump_py: bool = False, current_file: str = None
+    src: str, dump_py: bool = False, current_file: str | None = None
 ) -> Dict[str, Any]:
     """Run Ekilang source code.
 
@@ -44,7 +44,7 @@ def run_source(
         return {}  # Return empty namespace without executing
 
     # Execute with fast_executor enabled by default
-    return execute(mod, current_file=current_file, use_fast=True)
+    return execute(mod, current_file=current_file)
 
 
 def main(argv: list[str] | None = None) -> Literal[0] | Literal[1]:
@@ -59,10 +59,9 @@ def main(argv: list[str] | None = None) -> Literal[0] | Literal[1]:
     ap = argparse.ArgumentParser("ekilang")
     ap.add_argument("file", nargs="?")
     ap.add_argument("--dump-py", action="store_true")
-    ap.add_argument("--repl", action="store_true")
     args = ap.parse_args(argv)
 
-    if args.repl:
+    if not args.file:
         print("Ekilang REPL. Ctrl+C to exit.")
         while True:
             try:
@@ -77,9 +76,6 @@ def main(argv: list[str] | None = None) -> Literal[0] | Literal[1]:
             except (SyntaxError, ValueError, TypeError) as e:
                 print(f"Error: {e}")
         return 0
-
-    if not args.file:
-        ap.error("Provide a file or use --repl")
 
     with open(args.file, "r", encoding="utf-8") as f:
         src = f.read()

@@ -1,20 +1,20 @@
 """Runtime execution engine for Ekilang.
 
 Compiles Ekilang AST to Python AST and executes it.
-Supports fast executor optimization for performance-critical code.
 """
 
 from __future__ import annotations
 
 import ast
-from typing import Dict, Any
+from typing import Dict, Any, List, cast
 import os
+import gc
 from .lexer import Lexer
-from .parser import (
-    Parser,
+from .parser import Parser
+from .types import (
+    ExprNode,
+    Statement,
     Starred,
-    NullSafeAttr,
-    NullCoalesce,
     Slice,
     DictComp,
     SetComp,
@@ -60,11 +60,10 @@ from .parser import (
     Pipe,
     Yield,
 )
-from .fast_executor import compile_simple_loop, run_fast
 from .builtins import BUILTINS
 
 
-OP_MAP = {
+OP_MAP: Dict[str, ast.operator | ast.cmpop] = {
     "+": ast.Add(),
     "-": ast.Sub(),
     "*": ast.Mult(),
@@ -107,11 +106,11 @@ class CodeGen:
 
     def __init__(self) -> None:
         self.lambda_counter = 0
-        self.lambda_defs = []  # Store lambda function definitions
+        self.lambda_defs: list[ast.stmt] = []  # Store lambda function definitions
 
-    def _stmts(self, nodes) -> list:
+    def _stmts(self, nodes: list[Statement]) -> list[ast.stmt]:
         """Convert list of Ekilang statement nodes to Python AST statements."""
-        out = []
+        out: list[ast.stmt] = []
         for n in nodes:
             conv = self.stmt(n)
             if conv is not None:
@@ -123,7 +122,10 @@ class CodeGen:
         self.lambda_counter += 1
         return f"__lambda_{self.lambda_counter}"
 
-    def expr(self, node) -> ast.AST:
+    def expr(
+        self,
+        node: ExprNode,
+    ) -> ast.expr:
         """Convert Ekilang expression node to Python AST expression."""
         if isinstance(node, Int):
             return ast.Constant(node.value)
@@ -137,7 +139,10 @@ class CodeGen:
         if isinstance(node, NoneLit):
             return ast.Constant(None)
         if isinstance(node, ListLit):
-            return ast.List(elts=[self.expr(e) for e in node.elements], ctx=ast.Load())
+            return ast.List(
+                elts=[self.expr(e) for e in node.elements],
+                ctx=ast.Load(),
+            )
         if isinstance(node, DictLit):
             return ast.Dict(
                 keys=[self.expr(k) for k, _ in node.pairs],
@@ -159,21 +164,22 @@ class CodeGen:
             # Block-style lambda: (a, b) => { ... }
             # Create a named function and reference it
             fn_name = self.get_lambda_name()
-            fn_body = []
-            for i, stmt in enumerate(node.body):
-                ast_stmt = self.stmt(stmt)
-                if ast_stmt is None:
-                    continue
-                # Convert last ExprStmt to Return
-                if i == len(node.body) - 1 and isinstance(stmt, ExprStmt):
-                    fn_body.append(ast.Return(value=ast_stmt.value))
-                elif i == len(node.body) - 1 and isinstance(stmt, If):
-                    self._convert_if_to_return(ast_stmt)
-                    fn_body.append(ast_stmt)
-                else:
-                    fn_body.append(ast_stmt)
-            if not fn_body:
-                fn_body = [ast.Pass()]
+            fn_body: list[ast.stmt] = []
+            if node.body is not None:
+                for i, stmt in enumerate(node.body):
+                    ast_stmt = self.stmt(stmt)
+                    if ast_stmt is None:
+                        continue
+                    # Convert last ExprStmt to Return
+                    if i == len(node.body) - 1 and isinstance(stmt, ExprStmt):
+                        fn_body.append(ast.Return(value=cast(ast.Expr, ast_stmt).value))
+                    elif i == len(node.body) - 1 and isinstance(stmt, If):
+                        if isinstance(ast_stmt, ast.If):
+                            self._convert_if_to_return(ast_stmt)
+                        fn_body.append(ast_stmt)
+                    else:
+                        fn_body.append(ast_stmt)
+
             fn_def = ast.FunctionDef(
                 name=fn_name,
                 args=ast.arguments(
@@ -183,7 +189,7 @@ class CodeGen:
                     kw_defaults=[],
                     defaults=[],
                 ),
-                body=fn_body,
+                body=fn_body if fn_body else [ast.Pass()],
                 decorator_list=[],
                 returns=None,
             )
@@ -191,9 +197,13 @@ class CodeGen:
             return ast.Name(id=fn_name, ctx=ast.Load())
         if isinstance(node, UnaryOp):
             if node.op == "-":
-                return ast.UnaryOp(op=ast.USub(), operand=self.expr(node.operand))
+                return ast.UnaryOp(
+                    op=ast.USub(), operand=self.expr(node.operand)
+                )
             if node.op == "not":
-                return ast.UnaryOp(op=ast.Not(), operand=self.expr(node.operand))
+                return ast.UnaryOp(
+                    op=ast.Not(), operand=self.expr(node.operand)
+                )
             raise TypeError(f"Unsupported unary op {node.op}")
         if isinstance(node, Name):
             return ast.Name(id=node.id, ctx=ast.Load())
@@ -212,30 +222,40 @@ class CodeGen:
             }:
                 return ast.Compare(
                     left=self.expr(node.left),
-                    ops=[OP_MAP[node.op]],
+                    ops=[cast(ast.cmpop, OP_MAP[node.op])],
                     comparators=[self.expr(node.right)],
                 )
             if node.op == "and":
                 return ast.BoolOp(
-                    op=ast.And(), values=[self.expr(node.left), self.expr(node.right)]
+                    op=ast.And(),
+                    values=[
+                        self.expr(node.left),
+                        self.expr(node.right),
+                    ],
                 )
             if node.op == "or":
                 return ast.BoolOp(
-                    op=ast.Or(), values=[self.expr(node.left), self.expr(node.right)]
+                    op=ast.Or(),
+                    values=[
+                        self.expr(node.left),
+                        self.expr(node.right),
+                    ],
                 )
             return ast.BinOp(
                 left=self.expr(node.left),
-                op=OP_MAP[node.op],
+                op=cast(ast.operator, OP_MAP[node.op]),
                 right=self.expr(node.right),
             )
         if isinstance(node, Call):
             # Support Starred (splat) args
 
-            py_args = []
+            py_args: list[ast.expr] = []
             for a in node.args:
                 if isinstance(a, Starred):
                     py_args.append(
-                        ast.Starred(value=self.expr(a.value), ctx=ast.Load())
+                        ast.Starred(
+                            value=self.expr(a.value), ctx=ast.Load()
+                        )
                     )
                 else:
                     py_args.append(self.expr(a))
@@ -252,31 +272,9 @@ class CodeGen:
             )
         if isinstance(node, Attr):
             return ast.Attribute(
-                value=self.expr(node.value), attr=node.attr, ctx=ast.Load()
-            )
-        if isinstance(node, NullSafeAttr):
-            # value is None ? None : value.attr
-            cond = ast.Compare(
-                left=self.expr(node.value),
-                ops=[ast.Is()],
-                comparators=[ast.Constant(None)],
-            )
-            return ast.IfExp(
-                test=cond,
-                body=ast.Constant(None),
-                orelse=ast.Attribute(
-                    value=self.expr(node.value), attr=node.attr, ctx=ast.Load()
-                ),
-            )
-        if isinstance(node, NullCoalesce):
-            # left if left is not None else right
-            cond = ast.Compare(
-                left=self.expr(node.left),
-                ops=[ast.IsNot()],
-                comparators=[ast.Constant(None)],
-            )
-            return ast.IfExp(
-                test=cond, body=self.expr(node.left), orelse=self.expr(node.right)
+                value=self.expr(node.value),
+                attr=node.attr,
+                ctx=ast.Load(),
             )
         if isinstance(node, Index):
             # Check if index is a Slice object
@@ -301,7 +299,9 @@ class CodeGen:
                     ),
                 )
                 return ast.Subscript(
-                    value=self.expr(node.value), slice=slice_node, ctx=ast.Load()
+                    value=self.expr(node.value),
+                    slice=slice_node,
+                    ctx=ast.Load(),
                 )
             return ast.Subscript(
                 value=self.expr(node.value),
@@ -310,17 +310,31 @@ class CodeGen:
             )
         if isinstance(node, FString):
             # Build f-string with format specifiers
-            result = None
-            for idx, part in enumerate(node.parts):
-                if isinstance(part, str):
-                    # String literal part
-                    part_ast = ast.Constant(part)
-                else:
-                    # Expression part - evaluate and format
-                    expr_ast = self.expr(part)
-                    format_spec = node.formats[idx] if idx < len(node.formats) else None
+            # node.parts: list of string parts (len = len(exprs) + 1)
+            # node.exprs: list of expression nodes
+            # node.formats: list of format specs aligned with exprs
+            # node.debug_exprs: list of debug expr strings aligned with exprs
+            result: ast.expr | None = None
+            for expr_idx in range(len(node.exprs) + 1):
+                # Add string part
+                if expr_idx < len(node.parts):
+                    part_str = node.parts[expr_idx]
+                    part_ast = ast.Constant(part_str)
+                    if result is None:
+                        result = part_ast
+                    else:
+                        result = ast.BinOp(left=result, op=ast.Add(), right=part_ast)
+
+                # Add corresponding expression if there is one
+                if expr_idx < len(node.exprs):
+                    expr_ast = self.expr(node.exprs[expr_idx])
+                    format_spec = (
+                        node.formats[expr_idx] if expr_idx < len(node.formats) else None
+                    )
                     debug_expr = (
-                        node.debug_exprs[idx] if idx < len(node.debug_exprs) else None
+                        node.debug_exprs[expr_idx]
+                        if expr_idx < len(node.debug_exprs)
+                        else None
                     )
 
                     if debug_expr:
@@ -333,7 +347,7 @@ class CodeGen:
                                 args=[expr_ast, ast.Constant(format_spec)],
                                 keywords=[],
                             )
-                            part_ast = ast.BinOp(
+                            expr_part = ast.BinOp(
                                 left=debug_prefix, op=ast.Add(), right=formatted_value
                             )
                         else:
@@ -343,43 +357,57 @@ class CodeGen:
                                 args=[expr_ast],
                                 keywords=[],
                             )
-                            part_ast = ast.BinOp(
+                            expr_part = ast.BinOp(
                                 left=debug_prefix, op=ast.Add(), right=str_value
                             )
                     elif format_spec:
                         # Apply format specifier
-                        part_ast = ast.Call(
+                        expr_part = ast.Call(
                             func=ast.Name(id="format", ctx=ast.Load()),
                             args=[expr_ast, ast.Constant(format_spec)],
                             keywords=[],
                         )
                     else:
                         # No format, just convert to string
-                        part_ast = ast.Call(
+                        expr_part = ast.Call(
                             func=ast.Name(id="str", ctx=ast.Load()),
                             args=[expr_ast],
                             keywords=[],
                         )
 
-                if result is None:
-                    result = part_ast
-                else:
-                    # Concatenate with +
-                    result = ast.BinOp(left=result, op=ast.Add(), right=part_ast)
+                    if result is not None:
+                        result = ast.BinOp(left=result, op=ast.Add(), right=expr_part)
+                    else:
+                        result = expr_part
+
             return result if result is not None else ast.Constant("")
         if isinstance(node, TString):
             # Build t-string (template string) with format specifiers
-            result = None
-            for idx, part in enumerate(node.parts):
-                if isinstance(part, str):
-                    # String literal part
-                    part_ast = ast.Constant(part)
-                else:
-                    # Expression part - evaluate and format
-                    expr_ast = self.expr(part)
-                    format_spec = node.formats[idx] if idx < len(node.formats) else None
+            # node.parts: list of string parts (len = len(exprs) + 1)
+            # node.exprs: list of expression nodes
+            # node.formats: list of format specs aligned with exprs
+            # node.debug_exprs: list of debug expr strings aligned with exprs
+            result: ast.expr | None = None
+            for expr_idx in range(len(node.exprs) + 1):
+                # Add string part
+                if expr_idx < len(node.parts):
+                    part_str = node.parts[expr_idx]
+                    part_ast = ast.Constant(part_str)
+                    if result is None:
+                        result = part_ast
+                    else:
+                        result = ast.BinOp(left=result, op=ast.Add(), right=part_ast)
+
+                # Add corresponding expression if there is one
+                if expr_idx < len(node.exprs):
+                    expr_ast = self.expr(node.exprs[expr_idx])
+                    format_spec = (
+                        node.formats[expr_idx] if expr_idx < len(node.formats) else None
+                    )
                     debug_expr = (
-                        node.debug_exprs[idx] if idx < len(node.debug_exprs) else None
+                        node.debug_exprs[expr_idx]
+                        if expr_idx < len(node.debug_exprs)
+                        else None
                     )
 
                     if debug_expr:
@@ -392,7 +420,7 @@ class CodeGen:
                                 args=[expr_ast, ast.Constant(format_spec)],
                                 keywords=[],
                             )
-                            part_ast = ast.BinOp(
+                            expr_part = ast.BinOp(
                                 left=debug_prefix, op=ast.Add(), right=formatted_value
                             )
                         else:
@@ -402,29 +430,29 @@ class CodeGen:
                                 args=[expr_ast],
                                 keywords=[],
                             )
-                            part_ast = ast.BinOp(
+                            expr_part = ast.BinOp(
                                 left=debug_prefix, op=ast.Add(), right=str_value
                             )
                     elif format_spec:
                         # Apply format specifier
-                        part_ast = ast.Call(
+                        expr_part = ast.Call(
                             func=ast.Name(id="format", ctx=ast.Load()),
                             args=[expr_ast, ast.Constant(format_spec)],
                             keywords=[],
                         )
                     else:
                         # No format, just convert to string
-                        part_ast = ast.Call(
+                        expr_part = ast.Call(
                             func=ast.Name(id="str", ctx=ast.Load()),
                             args=[expr_ast],
                             keywords=[],
                         )
 
-                if result is None:
-                    result = part_ast
-                else:
-                    # Concatenate with +
-                    result = ast.BinOp(left=result, op=ast.Add(), right=part_ast)
+                    if result is not None:
+                        result = ast.BinOp(left=result, op=ast.Add(), right=expr_part)
+                    else:
+                        result = expr_part
+
             return result if result is not None else ast.Constant("")
         if isinstance(node, TernaryOp):
             # Convert to IfExp: test if true else false
@@ -450,16 +478,26 @@ class CodeGen:
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=[self.expr(node.condition)] if node.condition else [],
+                ifs=(
+                    [self.expr(node.condition)]
+                    if node.condition
+                    else []
+                ),
                 is_async=0,
             )
-            return ast.ListComp(elt=self.expr(node.expr), generators=[comprehension])
+            return ast.ListComp(
+                elt=self.expr(node.expr), generators=[comprehension]
+            )
         if isinstance(node, DictComp):
             # Build dict comprehension: {key: value for target in iter if condition}
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=[self.expr(node.condition)] if node.condition else [],
+                ifs=(
+                    [self.expr(node.condition)]
+                    if node.condition
+                    else []
+                ),
                 is_async=0,
             )
             return ast.DictComp(
@@ -472,10 +510,16 @@ class CodeGen:
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=[self.expr(node.condition)] if node.condition else [],
+                ifs=(
+                    [self.expr(node.condition)]
+                    if node.condition
+                    else []
+                ),
                 is_async=0,
             )
-            return ast.SetComp(elt=self.expr(node.expr), generators=[comprehension])
+            return ast.SetComp(
+                elt=self.expr(node.expr), generators=[comprehension]
+            )
         if isinstance(node, Await):
             return ast.Await(value=self.expr(node.value))
         if isinstance(node, Cast):
@@ -503,21 +547,28 @@ class CodeGen:
                 # Forward pipe: left |> right
                 # right should be a callable, left is the argument
                 return ast.Call(
-                    func=self.expr(node.right), args=[self.expr(node.left)], keywords=[]
+                    func=self.expr(node.right),
+                    args=[self.expr(node.left)],
+                    keywords=[],
                 )
             if node.op == "<|":
                 # Backward pipe: left <| right
                 # left should be a callable, right is the argument
                 return ast.Call(
-                    func=self.expr(node.left), args=[self.expr(node.right)], keywords=[]
+                    func=self.expr(node.left),
+                    args=[self.expr(node.right)],
+                    keywords=[],
                 )
         if isinstance(node, TupleLit):
-            return ast.Tuple(elts=[self.expr(e) for e in node.elements], ctx=ast.Load())
+            return ast.Tuple(
+                elts=[self.expr(e) for e in node.elements],
+                ctx=ast.Load(),
+            )
         if isinstance(node, SetLit):
             return ast.Set(elts=[self.expr(e) for e in node.elements])
         raise TypeError(f"Unsupported expr node: {type(node)}")
 
-    def _convert_if_to_return(self, if_stmt):
+    def _convert_if_to_return(self, if_stmt: ast.If) -> None:
         """Convert last expression statement in if branches to return (recursively)"""
         # Handle the consequence body
         if if_stmt.body:
@@ -537,14 +588,26 @@ class CodeGen:
                 # Recursively convert nested if statements
                 self._convert_if_to_return(last)
 
-    def stmt(self, node):
+    def stmt(
+        self,
+        node: Statement,
+    ) -> ast.stmt | None:
         """Convert Ekilang statement node to Python AST statement."""
         if isinstance(node, Class):
             # Generate class definition
-            bases = [ast.Name(id=base, ctx=ast.Load()) for base in node.bases]
-            class_body = self._stmts(node.body) if node.body else [ast.Pass()]
+            bases = cast(
+                list[ast.expr],
+                [ast.Name(id=base, ctx=ast.Load()) for base in node.bases],
+            )
+            class_body = (
+                self._stmts(node.body)
+                if node.body
+                else cast(list[ast.stmt], [ast.Pass()])
+            )
             decorator_list = (
-                [self.expr(d) for d in node.decorators] if node.decorators else []
+                [self.expr(d) for d in node.decorators]
+                if node.decorators
+                else []
             )
             return ast.ClassDef(
                 name=node.name,
@@ -558,17 +621,26 @@ class CodeGen:
             if isinstance(node.name, list):
                 # Multiple names: unpacking assignment
                 # x, y, z = value  ->  x, y, z = value
-                targets = [
-                    ast.Tuple(
-                        elts=[ast.Name(id=name, ctx=ast.Store()) for name in node.name],
-                        ctx=ast.Store(),
-                    )
-                ]
+                targets = cast(
+                    list[ast.expr],
+                    [
+                        ast.Tuple(
+                            elts=[
+                                ast.Name(id=name, ctx=ast.Store()) for name in node.name
+                            ],
+                            ctx=ast.Store(),
+                        )
+                    ],
+                )
             else:
                 # Single name: regular assignment
-                targets = [ast.Name(id=node.name, ctx=ast.Store())]
+                targets = cast(
+                    list[ast.expr], [ast.Name(id=node.name, ctx=ast.Store())]
+                )
 
-            return ast.Assign(targets=targets, value=self.expr(node.value))
+            return ast.Assign(
+                targets=targets, value=self.expr(node.value)
+            )
         if isinstance(node, Assign):
             # Handle both Name and Attr targets
 
@@ -582,11 +654,13 @@ class CodeGen:
                 )
             else:
                 # Fallback: try to convert the target expression
-                target = self.expr(node.target)
+                target = self.expr(cast(ExprNode, node.target))
                 # Change ctx to Store
                 if hasattr(target, "ctx"):
-                    target.ctx = ast.Store()
-            return ast.Assign(targets=[target], value=self.expr(node.value))
+                    target.ctx = ast.Store()  # type: ignore[attr-defined]
+            return ast.Assign(
+                targets=[target], value=self.expr(node.value)
+            )
         if isinstance(node, AugAssign):
             # Handle both Name and Attr targets
 
@@ -600,28 +674,36 @@ class CodeGen:
                 )
             else:
                 # Fallback
-                target = self.expr(node.target)
+                target = self.expr(cast(ExprNode, node.target))
                 if hasattr(target, "ctx"):
-                    target.ctx = ast.Store()
+                    target.ctx = ast.Store()  # type: ignore[attr-defined]
             return ast.AugAssign(
-                target=target,
-                op=OP_MAP[node.op],
+                target=cast(ast.Name | ast.Attribute | ast.Subscript, target),  # type: ignore[arg-type]
+                op=cast(ast.operator, OP_MAP[node.op]),
                 value=self.expr(node.value),
             )
         if isinstance(node, ExprStmt):
             if isinstance(node.value, (Str, FString, TString)):
                 # Discard bare string expressions (acts like Python's no-op/docstring behavior)
                 return None
-            return ast.Expr(value=self.expr(node.value))
+            return ast.Expr(value=self.expr(cast(ExprNode, node.value)))
         if isinstance(node, Return):
             return ast.Return(
-                value=self.expr(node.value) if node.value is not None else None
+                value=(
+                    self.expr(node.value)
+                    if node.value is not None
+                    else None
+                )
             )
         if isinstance(node, Yield):
             # In Python AST, a bare yield in statement position is an Expr(Yield(...))
             return ast.Expr(
                 value=ast.Yield(
-                    value=self.expr(node.value) if node.value is not None else None
+                    value=(
+                        self.expr(node.value)
+                        if node.value is not None
+                        else None
+                    )
                 )
             )
         if isinstance(node, If):
@@ -633,28 +715,22 @@ class CodeGen:
         if isinstance(node, Match):
             # Compile match to if-elif chain
             subject = self.expr(node.subject)
-            orelse = []
+            orelse: List[ast.stmt] = []
             for case in reversed(node.cases):
-                if case.pattern is None:  # _
-                    test = ast.Constant(True)
-                elif isinstance(case.pattern, list):
-                    # x in [p1, p2, p3]
-                    test = ast.Compare(
-                        left=subject,
-                        ops=[ast.In()],
-                        comparators=[
-                            ast.List(
-                                elts=[self.expr(p) for p in case.pattern],
-                                ctx=ast.Load(),
-                            )
-                        ],
-                    )
-                else:
-                    test = ast.Compare(
-                        left=subject,
-                        ops=[ast.Eq()],
-                        comparators=[self.expr(case.pattern)],
-                    )
+                # Wildcard cases may be represented as None or an empty list
+                is_wildcard = case.patterns == [] or len(case.patterns) == 0
+                test = ast.Constant(True) if is_wildcard else ast.Compare(
+                    left=subject,
+                    ops=[ast.In()],
+                    comparators=[
+                        ast.List(
+                            elts=[
+                                self.expr(p) for p in case.patterns
+                            ],
+                            ctx=ast.Load(),
+                        )
+                    ],
+                )
                 if case.guard:
                     test = ast.BoolOp(
                         op=ast.And(),
@@ -665,17 +741,19 @@ class CodeGen:
             return orelse[0] if orelse else ast.Pass()
         if isinstance(node, While):
             return ast.While(
-                test=self.expr(node.test), body=self._stmts(node.body), orelse=[]
+                test=self.expr(node.test),
+                body=self._stmts(node.body),
+                orelse=[],
             )
         if isinstance(node, For):
-            # Support tuple/list unpacking in for loop targets
-            if isinstance(node.target, list):
+            # node.target is always a list[Name]; use single Name when possible
+            if len(node.target) == 1:
+                target = ast.Name(id=node.target[0].id, ctx=ast.Store())
+            else:
                 target = ast.Tuple(
                     elts=[ast.Name(id=t.id, ctx=ast.Store()) for t in node.target],
                     ctx=ast.Store(),
                 )
-            else:
-                target = ast.Name(id=node.target.id, ctx=ast.Store())
             return ast.For(
                 target=target,
                 iter=self.expr(node.iter),
@@ -690,7 +768,7 @@ class CodeGen:
             # Build defaults list
             defaults_list = []
             if node.defaults:
-                defaults_list = [self.expr(d) for d in node.defaults]
+                defaults_list = [self.expr(cast(ExprNode, d)) for d in node.defaults]
 
             fn_args = ast.arguments(
                 posonlyargs=[],
@@ -723,7 +801,9 @@ class CodeGen:
                 ),
             )
             decorator_list = (
-                [self.expr(d) for d in node.decorators] if node.decorators else []
+                [self.expr(d) for d in node.decorators]
+                if node.decorators
+                else []
             )
             fn_def = ast.FunctionDef(
                 name=node.name,
@@ -737,7 +817,7 @@ class CodeGen:
             # Build defaults list
             defaults_list = []
             if node.defaults:
-                defaults_list = [self.expr(d) for d in node.defaults]
+                defaults_list = [self.expr(cast(ExprNode, d)) for d in node.defaults]
 
             fn_args = ast.arguments(
                 posonlyargs=[],
@@ -770,7 +850,9 @@ class CodeGen:
                 ),
             )
             decorator_list = (
-                [self.expr(d) for d in node.decorators] if node.decorators else []
+                [self.expr(d) for d in node.decorators]
+                if node.decorators
+                else []
             )
             fn_def = ast.AsyncFunctionDef(
                 name=node.name,
@@ -780,26 +862,25 @@ class CodeGen:
                 returns=ast.Constant(node.return_type) if node.return_type else None,
             )
             return fn_def
+        # Handle Use statements (imports)
+        aliases = [ast.alias(name=item.name, asname=item.alias) for item in node.items]
+        mod_elems = node.module
 
-        if isinstance(node, Use):
-            aliases = [ast.alias(name=item.name, asname=item.alias) for item in node.items]
-            mod_elems = node.module
-            
-            if not node.module:
-                return ast.Import(names=aliases)
+        if not node.module:
+            return ast.Import(names=aliases)
 
-            level = 0
-            if mod_elems and all(c == "." for c in mod_elems[0]):
-                level = len(mod_elems[0])
-                mod_elems = mod_elems[1:]
+        level = 0
+        if mod_elems and all(c == "." for c in mod_elems[0]):
+            level = len(mod_elems[0])
+            mod_elems = mod_elems[1:]
 
-            module = ".".join(mod_elems) or None
+        module = ".".join(mod_elems) or None
 
-            return ast.ImportFrom(
-                module=module,
-                names=aliases,
-                level=level,
-            )
+        return ast.ImportFrom(
+            module=module,
+            names=aliases,
+            level=level,
+        )
 
     def module(self, mod: Module) -> ast.Module:
         """Convert Ekilang Module to Python AST Module."""
@@ -819,9 +900,8 @@ def compile_module(mod: Module) -> Any:
 def execute(
     mod: Module,
     globals_ns: Dict[str, Any] | None = None,
-    current_file: str = None,
+    current_file: str | None = None,
     code_obj: Any = None,
-    use_fast: bool = False,
 ) -> Dict[str, Any]:
     """Execute Ekilang module with optional fast executor optimization.
 
@@ -849,10 +929,9 @@ def execute(
 
     # Process Use statements first to load .eki modules
     imports_ns: Dict[str, Any] = {}
-    filtered_body = []
-    has_use = False
+    filtered_body: list[Statement] = []
 
-    def handle_use_import(stmt):
+    def handle_use_import(stmt: Use) -> bool:
         # Handle .eki file imports
         # For relative imports like ['.', 'helpers'], construct as ".::helpers"
         if stmt.module and stmt.module[0].startswith("."):
@@ -893,7 +972,6 @@ def execute(
 
     for stmt in mod.body:
         if isinstance(stmt, Use):
-            has_use = True
             handle_use_import(stmt)
         else:
             filtered_body.append(stmt)
@@ -910,22 +988,25 @@ def execute(
         ns.update(globals_ns)
     # Set __file__ if current_file is provided
     if current_file is not None:
-        import os
 
         ns["__file__"] = os.path.abspath(current_file)
     # Only set __name__ to '__main__' if not already set (i.e., for main script)
     if "__name__" not in ns:
         ns["__name__"] = "__main__"
+
     exec(code, ns, ns)
+    gc.collect()
     return ns
 
 
-# Module cache for imported .eki files
+# Module cache for imported .eki files (can be disabled for low-memory environments)
 MODULE_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def load_ekilang_module(
-    module_path: str, search_paths: list = None, current_file: str = None
+    module_path: str,
+    search_paths: list[str] | None = None,
+    current_file: str | None = None,
 ) -> Dict[str, Any]:
     """Load and cache a .eki module file.
 
@@ -992,9 +1073,7 @@ def load_ekilang_module(
         # Absolute imports
         # Default search paths
         if search_paths is None:
-            search_paths = [
-                os.getcwd(),
-            ]
+            search_paths = [os.getcwd()]
 
         # Convert module path: "lib.math_utils" -> "lib/math_utils"
         module_file = module_path.replace(".", os.sep)

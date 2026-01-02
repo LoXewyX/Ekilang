@@ -1,32 +1,42 @@
-#!/usr/bin/env python3
 """
 Ekilang Benchmark Suite
 Measures: Execution time, memory consumption
 """
 
+import argparse
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 import os
 import sys
 import time
 import psutil
-import argparse
-from pathlib import Path
-from typing import Callable, Any, Dict, Optional, List
+from ekilang.fast_executor import Compiler, FastProgram, run_fast
+from ekilang.lexer import Lexer
+from ekilang.parser import Parser, Use
+from ekilang.runtime import compile_module, execute
+from ekilang.builtins import BUILTINS
 
 # Add current dir to path for ekilang package
 ROOT = os.path.abspath(os.path.dirname(__file__))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
-
-from ekilang.lexer import Lexer
-from ekilang.parser import Parser, Use
-from ekilang.runtime import execute, compile_module
-from ekilang.builtins import BUILTINS
-from ekilang.fast_executor import compile_simple_loop, run_fast
+PARENT = os.path.dirname(ROOT)
+if PARENT not in sys.path:
+    sys.path.insert(0, PARENT)
 
 
-def run_repeated(fn: Callable[[], Any], runs: int = 5, warmup: int = 0) -> Dict[str, float]:
+def compile_simple_loop(mod: Any) -> Optional[FastProgram]:
+    """Compile module to fast bytecode if supported; returns None on fallback."""
+    compiler = Compiler()
+    return compiler.compile(mod)
+
+
+def run_repeated(
+    fn: Callable[[], Any], runs: int = 5, warmup: int = 0
+) -> Dict[str, float]:
+    """Run a function multiple times and collect timing, memory, and CPU usage stats"""
     times: List[float] = []
     mem_deltas: List[float] = []
+    cpu_usages: List[float] = []
+    process = psutil.Process()
     total_iters: int = warmup + runs
     for i in range(total_iters):
         t0: float = time.perf_counter()
@@ -34,9 +44,11 @@ def run_repeated(fn: Callable[[], Any], runs: int = 5, warmup: int = 0) -> Dict[
         fn()
         elapsed: float = time.perf_counter() - t0
         mem_after: float = psutil.Process().memory_info().rss / 1024 / 1024
+        cpu_usage = process.cpu_percent(interval=elapsed)
         if i >= warmup:
             times.append(elapsed)
             mem_deltas.append(mem_after - mem_before)
+            cpu_usages.append(cpu_usage)
     times_sorted: List[float] = sorted(times)
     p95: float = times_sorted[int(0.95 * (len(times_sorted) - 1))]
     return {
@@ -44,21 +56,23 @@ def run_repeated(fn: Callable[[], Any], runs: int = 5, warmup: int = 0) -> Dict[
         "mean": sum(times) / len(times),
         "p95": p95,
         "mem": sum(mem_deltas) / len(mem_deltas),
+        "cpu": sum(cpu_usages) / len(cpu_usages),
     }
 
 
 def run_ekilang_benchmark(
-    name: str, filepath: str, runs: int = 5, warmup: int = 0, fast: bool = False
+    name: str, filepath: str | Path, runs: int = 5, warmup: int = 0, fast: bool = False
 ) -> Dict[str, Any]:
     """Run a Ekilang benchmark file multiple times and report aggregated metrics"""
     print(f"\n{'='*60}")
     print(f"  {name}")
     print(f"{'='*60}")
 
-    with open(filepath, "r") as f:
+    file_path = Path(filepath)
+
+    with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
 
-    process = psutil.Process()
     parse_start = time.perf_counter()
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
@@ -68,8 +82,7 @@ def run_ekilang_benchmark(
     code_obj = None
     compile_time = None
     shared_ns = None
-    fast_prog = None
-    fast_compile_time = None
+    fast_prog: Optional[FastProgram] = None
     if not has_use:
         compile_start = time.perf_counter()
         code_obj = compile_module(mod)
@@ -77,12 +90,10 @@ def run_ekilang_benchmark(
         shared_ns = dict(BUILTINS)
         shared_ns["__ekilang_builtins_loaded__"] = True
         if fast:
-            fstart = time.perf_counter()
             fast_prog = compile_simple_loop(mod)
-            fast_compile_time = time.perf_counter() - fstart
 
     def exec_cached() -> None:
-        if fast and fast_prog is not None:
+        if fast and fast_prog is not None and shared_ns is not None:
             run_fast(fast_prog, shared_ns)
         elif code_obj:
             execute(mod, globals_ns=shared_ns, code_obj=code_obj)
@@ -91,16 +102,11 @@ def run_ekilang_benchmark(
 
     agg = run_repeated(exec_cached, runs=runs, warmup=warmup)
 
-    print(f"  Parse Time (one-time): {parse_time:.3f}s")
-    if compile_time is not None:
-        print(f"  Compile Time (one-time): {compile_time:.3f}s (cached globals)")
-    if fast and fast_prog is not None:
-        print(f"  Fast-path Lowering:      {fast_compile_time:.3f}s (opcode cache) ✓ ACTIVE")
-    elif fast and fast_prog is None:
-        print(f"  Fast-path:               Not used (unsupported features, using standard)")
-    print(f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s")
+    print(
+        f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s"
+    )
     print(f"  Memory Delta (avg): {agg['mem']:.2f} MB")
-    print(f"  CPU Usage (psutil snapshot): ~{process.cpu_percent():.1f}%")
+    print(f"  CPU Usage (avg during exec): {agg['cpu']:.1f}%")
     print(f"{'='*60}")
 
     return {
@@ -111,11 +117,13 @@ def run_ekilang_benchmark(
         "time_mean": agg["mean"],
         "time_p95": agg["p95"],
         "memory": agg["mem"],
+        "cpu": agg["cpu"],
         "fast": bool(fast and fast_prog is not None),
     }
 
 
 def count_primes_py(limit: int) -> int:
+    """Count number of primes up to limit in pure Python"""
     count: int = 0
     n: int = 2
     while n <= limit:
@@ -132,6 +140,7 @@ def count_primes_py(limit: int) -> int:
 
 
 def run_python_workload() -> Dict[str, int]:
+    """Run equivalent workload in pure Python for comparison"""
     prime_count: int = count_primes_py(1000)
 
     total: int = 0
@@ -186,14 +195,14 @@ def run_python_benchmark(name: str, runs: int = 5, warmup: int = 0) -> Dict[str,
     print(f"  {name}")
     print(f"{'='*60}")
 
-    process = psutil.Process()
-
     agg = run_repeated(run_python_workload, runs=runs, warmup=warmup)
 
-    print(f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s")
+    print(
+        f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s"
+    )
     print(f"  Memory Delta (avg): {agg['mem']:.2f} MB")
-    print(f"  CPU Usage (psutil snapshot): ~{process.cpu_percent():.1f}%")
-    print(f"  Results shown from last run above")
+    print(f"  CPU Usage (avg during exec): {agg['cpu']:.1f}%")
+    print("  Results shown from last run above")
     print(f"{'='*60}")
 
     return {
@@ -202,11 +211,13 @@ def run_python_benchmark(name: str, runs: int = 5, warmup: int = 0) -> Dict[str,
         "time_mean": agg["mean"],
         "time_p95": agg["p95"],
         "memory": agg["mem"],
+        "cpu": agg["cpu"],
     }
 
 
 # --- N-Queens Python version for fair comparison ---
 def is_safe_py(queens: List[int], row: int, col: int) -> bool:
+    """Check if placing a queen at (row, col) is safe given current queens' positions."""
     for i in range(row):
         qcol: int = queens[i]
         if qcol == col or abs(qcol - col) == row - i:
@@ -215,6 +226,7 @@ def is_safe_py(queens: List[int], row: int, col: int) -> bool:
 
 
 def solve_nqueens_py(n: int, row: int, queens: List[int], count: List[int]) -> None:
+    """Recursive backtracking solver for N-Queens problem."""
     if row == n:
         count[0] += 1
         return
@@ -225,6 +237,7 @@ def solve_nqueens_py(n: int, row: int, queens: List[int], count: List[int]) -> N
 
 
 def nqueens_bench_py(n: int) -> int:
+    """Count number of solutions to N-Queens problem in pure Python."""
     queens: List[int] = [0] * n
     count: List[int] = [0]
     solve_nqueens_py(n, 0, queens, count)
@@ -234,10 +247,10 @@ def nqueens_bench_py(n: int) -> int:
 def run_python_nqueens_benchmark(
     name: str, N: int = 12, runs: int = 3, warmup: int = 1
 ) -> Dict[str, Any]:
+    """Run N-Queens benchmark in pure Python for comparison"""
     print(f"\n{'='*60}")
     print(f"  {name}")
     print(f"{'='*60}")
-    process = psutil.Process()
 
     def run() -> None:
         result: int = nqueens_bench_py(N)
@@ -246,9 +259,11 @@ def run_python_nqueens_benchmark(
             print(f"N-Queens solutions for N={N}: {result}")
 
     agg = run_repeated(run, runs=runs, warmup=warmup)
-    print(f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s")
+    print(
+        f"  Exec Time   min/mean/p95: {agg['min']:.3f}s / {agg['mean']:.3f}s / {agg['p95']:.3f}s"
+    )
     print(f"  Memory Delta (avg): {agg['mem']:.2f} MB")
-    print(f"  CPU Usage (psutil snapshot): ~{process.cpu_percent():.1f}%")
+    print(f"  CPU Usage (avg during exec): {agg['cpu']:.1f}%")
     print(f"{'='*60}")
 
     return {
@@ -257,29 +272,43 @@ def run_python_nqueens_benchmark(
         "time_mean": agg["mean"],
         "time_p95": agg["p95"],
         "memory": agg["mem"],
+        "cpu": agg["cpu"],
     }
 
 
 def main() -> None:
+    """Main function to run benchmarks based on command-line arguments."""
     parser = argparse.ArgumentParser(description="Ekilang vs Python benchmark")
-    parser.add_argument("--runs", type=int, default=5, help="Measured runs per language")
-    parser.add_argument("--warmup", type=int, default=0, help="Warmup runs (not measured)")
-    parser.add_argument("--fast", action="store_true", help="Use fast-path executor when available (no use imports)")
+    parser.add_argument(
+        "--runs", type=int, default=5, help="Measured runs per language"
+    )
+    parser.add_argument(
+        "--warmup", type=int, default=0, help="Warmup runs (not measured)"
+    )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Use fast-path executor when available (no use imports)",
+    )
     args = parser.parse_args()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  EKILANG BENCHMARK SUITE")
-    print("="*60)
+    print("=" * 60)
     print(f"  Python: {sys.version.split()[0]}")
     print(f"  RAM: {psutil.virtual_memory().total / 1024 / 1024 / 1024:.2f} GB")
     print(f"  CPUs: {psutil.cpu_count()}")
 
-    results = []
+    results: List[Dict[str, Any]] = []
 
-    bench_file = Path(__file__).parent / "examples" / "benchmark_intense.eki"
+    bench_file = Path(__file__).parent.parent / "examples" / "benchmark_intense.eki"
     if bench_file.exists():
         mod_result = run_ekilang_benchmark(
-            "Ekilang: Intense Benchmark (CPU + Memory)", bench_file, runs=args.runs, warmup=args.warmup, fast=args.fast
+            "Ekilang: Intense Benchmark (CPU + Memory)",
+            bench_file,
+            runs=args.runs,
+            warmup=args.warmup,
+            fast=args.fast,
         )
         if mod_result:
             results.append(mod_result)
@@ -291,10 +320,14 @@ def main() -> None:
         results.append(py_result)
 
     # --- N-Queens Benchmarks ---
-    nqueens_file = Path(__file__).parent / "examples" / "benchmark_nqueens.eki"
+    nqueens_file = Path(__file__).parent.parent / "examples" / "benchmark_nqueens.eki"
     if nqueens_file.exists():
         ny_result = run_ekilang_benchmark(
-            ": N-Queens Benchmark (N=12)", nqueens_file, runs=args.runs, warmup=args.warmup, fast=args.fast
+            "Ekilang: N-Queens Benchmark (N=12)",
+            nqueens_file,
+            runs=args.runs,
+            warmup=args.warmup,
+            fast=args.fast,
         )
         if ny_result:
             results.append(ny_result)
@@ -306,17 +339,52 @@ def main() -> None:
         results.append(py_result)
 
     if results:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("  SUMMARY (min / mean / p95; avg mem)")
-        print("="*60)
+        print("=" * 60)
         for r in results:
             if "parse_time" in r:
-                compile_str = f" comp {r['compile_time']:.3f}s |" if r.get("compile_time") is not None else ""
+                compile_str = (
+                    f" comp {r['compile_time']:.3f}s |"
+                    if r.get("compile_time") is not None
+                    else ""
+                )
                 fast_str = " fast" if r.get("fast") else ""
-                print(f"  {r['name']:<32} parse {r['parse_time']:.3f}s |{compile_str} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB{fast_str}")
+                print(
+                    f"  {r['name']:<32} parse {r['parse_time']:.3f}s |{compile_str} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB{fast_str}"
+                )
+
+                # Calculate overhead vs Python equivalent
+                py_match = None
+                for pr in results:
+                    if (
+                        not "parse_time" in pr
+                        and r["name"].replace("Ekilang: ", "Python: ") == pr["name"]
+                    ):
+                        py_match = pr
+                        break
+                if py_match:
+                    time_overhead = (
+                        (r["time_mean"] - py_match["time_mean"]) / py_match["time_mean"]
+                    ) * 100
+                    mem_overhead = (
+                        ((r["memory"] - py_match["memory"]) / py_match["memory"]) * 100
+                        if py_match["memory"] != 0
+                        else 0
+                    )
+                    cpu_overhead = (
+                        ((r["cpu"] - py_match["cpu"]) / py_match["cpu"]) * 100
+                        if py_match["cpu"] != 0
+                        else 0
+                    )
+                    print(
+                        f"    Overhead vs Python: {time_overhead:+.1f}% time, {mem_overhead:+.1f}% mem, {cpu_overhead:+.1f}% cpu"
+                    )
             else:
-                print(f"  {r['name']:<32} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB")
-        print("="*60 + "\n")
+                print(
+                    f"  {r['name']:<32} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB"
+                )
+        print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-use .::var2 { name2, file2 }
+use .::variables_2 { name2, file2 }
 
 print("1", __name__)
 print("1", __file__)

@@ -47,11 +47,6 @@ doubled = [x * 2 for x in nums]
 summary = t"Original: {nums}, Doubled: {doubled}"
 print(summary)
 
-# Combining with other features
-value = 42
-msg = t"The answer is {value}" ?? "No answer"
-print(msg)
-
 # Template strings work with f-strings too
 f_example = f"Using f-string: {name}"
 t_example = t"Using t-string: {name}"

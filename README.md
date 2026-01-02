@@ -4,15 +4,6 @@ Overview
 - Custom syntax that transpiles to Python AST and executes via Python for performance similar to native Python.
 - Modern features: block-style lambdas, f-strings, Rust-style imports, async/await, optional typing, pipeline operators, and more.
 
-Quick Start
-1. Install (using Poetry or run via Python):
-   - With Poetry: `poetry install`
-   - Without Poetry: run `python -m ekilang.cli examples/hello.eki`
-
-2. Run examples:
-   - `poetry run ekilang examples/hello.eki`
-   - `poetry run ekilang examples/pipeline_operators.eki`
-
 Syntax Preview
 ```
 x = 2

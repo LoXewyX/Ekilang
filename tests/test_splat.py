@@ -2,21 +2,23 @@
 
 import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
 
 def run(src: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)
 
 
 def test_print_splat_string():
+    """Test splat operator with string"""
     ns = run(
         """
 s = "hello"
@@ -36,6 +38,7 @@ out = collect(*s)
 
 
 def test_splat_list():
+    """Test splat operator with list"""
     ns = run(
         """
 lst = [1, 2, 3]
@@ -47,6 +50,7 @@ total = add3(*lst)
 
 
 def test_mixed_positional_and_splat():
+    """Test mixing positional and splat arguments"""
     ns = run(
         """
 lst = [2, 3]
@@ -58,6 +62,7 @@ result = mul(5, *lst)
 
 
 def test_multiple_splats():
+    """Test multiple splat arguments in a single call"""
     ns = run(
         """
 a = [1]
@@ -71,6 +76,7 @@ total = add3(*a, *b, *c)
 
 
 def test_splat_tuple():
+    """Test splat operator with tuple"""
     ns = run(
         """
 t = (4, 5)

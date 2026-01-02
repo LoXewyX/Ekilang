@@ -1,17 +1,15 @@
-[tool.poetry]
+[project]
 name = "ekilang"
 version = "0.1.0"
 description = "Ekilang: a Python-backed interpreted language with custom syntax"
-authors = ["LoXewyX <loxewyx@gmail.com>"]
+authors = [{ name = "LoXewyX", email = "loxewyx@gmail.com" }]
 readme = "README.md"
-packages = [{ include = "ekilang" }]
-
-[tool.poetry.dependencies]
-python = ">=3.9,<4.0"
-
-[tool.poetry.scripts]
-ekilang = "ekilang.cli:main"
+requires-python = ">=3.9,<4.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "ekilang._rust_lexer"
+script-files = []

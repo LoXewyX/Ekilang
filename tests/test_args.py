@@ -1,14 +1,17 @@
+"""Tests for function arguments: default parameters, *args, **kwargs in Ekilang language."""
+
 from pathlib import Path
 import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
 
 def run(code: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)
@@ -179,8 +182,6 @@ result2 = add(5, 20)
 
 def test_async_with_defaults():
     """Test async functions with defaults and varargs"""
-    import asyncio
-
     ns = run(
         """
 use asyncio

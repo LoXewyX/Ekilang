@@ -7,7 +7,7 @@ from ekilang.runtime import execute
 
 def test_call_counter_decorator():
     """Test decorator that counts function calls"""
-    src = '''
+    src = """
 fn count_calls(func) {
     state = [0]
     fn wrapper(x) {
@@ -25,12 +25,12 @@ fn noop(x) {
 first = noop(1)
 second = noop(2)
 third = noop(3)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["first"] == 1
     assert ns["second"] == 2
     assert ns["third"] == 3
@@ -38,7 +38,7 @@ third = noop(3)
 
 def test_type_validation_decorator():
     """Test decorator that validates input types"""
-    src = '''
+    src = """
 fn validate_positive(func) {
     fn wrapper(x) {
         if x <= 0 {
@@ -56,19 +56,19 @@ fn square(x) {
 
 valid = square(5)
 invalid = square(-3)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["valid"] == 25
     assert ns["invalid"] is None
 
 
 def test_safe_default_decorator():
     """Test decorator that provides default values"""
-    src = '''
+    src = """
 fn safe_default(default_val) {
     fn decorator(func) {
         fn wrapper(x) {
@@ -96,19 +96,19 @@ fn safe_divide(x) {
 
 good = safe_divide(10)
 bad = safe_divide(0)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["good"] == 10.0
     assert ns["bad"] == 0
 
 
 def test_timing_decorator():
     """Test decorator that logs execution"""
-    src = '''
+    src = """
 fn timing(func) {
     fn wrapper(x) {
         return func(x)
@@ -128,19 +128,19 @@ fn operation(n) {
 }
 
 result = operation(10)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # 0+1+2+...+9 = 45
     assert ns["result"] == 45
 
 
 def test_retry_decorator():
     """Test decorator that retries on failure"""
-    src = '''
+    src = """
 fn retry_once(func) {
     fn wrapper(x) {
         result = func(x)
@@ -162,12 +162,12 @@ fn maybe_fails(x) {
 
 single_attempt = maybe_fails(10)
 double_attempt = maybe_fails(3)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # First call succeeds (no retry needed): 10 * 2 = 20
     assert ns["single_attempt"] == 20
     # Second call fails first, then succeeds (retry returns None second time too)
@@ -176,7 +176,7 @@ double_attempt = maybe_fails(3)
 
 def test_nested_decorator_factories():
     """Test decorator factories with nested levels"""
-    src = '''
+    src = """
 fn apply_times(n) {
     fn decorator(func) {
         fn wrapper(x) {
@@ -199,19 +199,19 @@ fn increment(x) {
 }
 
 result = increment(10)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # Apply increment 3 times: 10 + 1 + 1 + 1 = 13
     assert ns["result"] == 13
 
 
 def test_decorator_with_state():
     """Test decorator that maintains internal state"""
-    src = '''
+    src = """
 fn stateful_decorator(func) {
     state = [0]
     fn wrapper(x) {
@@ -231,12 +231,12 @@ c1 = add_ten(1)
 c2 = add_ten(2)
 c3 = add_ten(3)
 count = add_ten(0)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["c1"] == 1
     assert ns["c2"] == 2
     assert ns["c3"] == 3
@@ -245,7 +245,7 @@ count = add_ten(0)
 
 def test_chaining_decorator_transformations():
     """Test decorators that chain transformations"""
-    src = '''
+    src = """
 fn add_suffix(text) {
     fn decorator(func) {
         fn wrapper(x) {
@@ -275,19 +275,19 @@ fn message(text) {
 }
 
 result = message("hello")
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     # Decorators applied bottom-up: message("hello") -> ">> hello" -> ">> hello!"
     assert ns["result"] == ">> hello!"
 
 
 def test_conditional_decorator():
     """Test decorator that conditionally modifies behavior"""
-    src = '''
+    src = """
 fn conditional_logging(should_log) {
     fn decorator(func) {
         fn wrapper(x) {
@@ -307,10 +307,10 @@ fn quiet_func(x) {
 }
 
 result = quiet_func(5)
-'''
-    
+"""
+
     tokens = Lexer(src).tokenize()
     mod = Parser(tokens).parse()
     ns = execute(mod)
-    
+
     assert ns["result"] == 10

@@ -1,0 +1,28 @@
+[package]
+name = "rust_lexer"
+version = "0.1.0"
+edition = "2021"
+authors = ["LoXewyX <loxewyx@gmail.com>"]
+description = "Ekilang: a Python-backed interpreted language with Rust optimizations"
+
+[lib]
+name = "rust_lexer"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module"] }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[features]
+default = []
+full = ["serde", "serde_json"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 1

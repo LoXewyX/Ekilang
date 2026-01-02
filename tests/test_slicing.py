@@ -2,15 +2,16 @@
 
 import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
 
 def run(source: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(source).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)

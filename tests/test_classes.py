@@ -1,11 +1,11 @@
 from pathlib import Path
 import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 
 def run(code: str):

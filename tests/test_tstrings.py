@@ -1,20 +1,24 @@
+"""Tests for t-strings (template strings) in Ekilang."""
+
 from pathlib import Path
 import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
 from ekilang.runtime import execute
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
 
 def run(code: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)
 
 
 def test_tstring_basic():
+    """Test basic t-string interpolation"""
     code = """
     name = "Alice"
     greeting = t"Hello, {name}!"
@@ -24,6 +28,7 @@ def test_tstring_basic():
 
 
 def test_tstring_multiple_expressions():
+    """Test t-string with multiple expressions"""
     code = """
     x = 5
     y = 10
@@ -34,6 +39,7 @@ def test_tstring_multiple_expressions():
 
 
 def test_tstring_no_interpolation():
+    """Test t-string with no interpolation"""
     code = """
     plain = t"Just a plain string"
     """
@@ -42,6 +48,7 @@ def test_tstring_no_interpolation():
 
 
 def test_tstring_with_numbers():
+    """Test t-string with numeric expression"""
     code = """
     num = 42
     msg = t"The answer is {num}"
@@ -51,6 +58,7 @@ def test_tstring_with_numbers():
 
 
 def test_tstring_complex_expression():
+    """Test t-string with a complex expression"""
     code = """
     a = 3
     b = 4
@@ -61,6 +69,7 @@ def test_tstring_complex_expression():
 
 
 def test_tstring_with_function_call():
+    """Test t-string with a function call inside"""
     code = """
     data = [1, 2, 3]
     msg = t"Length: {len(data)}"
@@ -70,6 +79,7 @@ def test_tstring_with_function_call():
 
 
 def test_tstring_nested():
+    """Test nested t-strings"""
     code = """
     x = 5
     inner = t"value is {x}"
@@ -80,6 +90,7 @@ def test_tstring_nested():
 
 
 def test_tstring_single_quotes():
+    """Test t-string with single quotes"""
     code = """
     name = "Bob"
     msg = t'Hello, {name}!'
@@ -89,6 +100,7 @@ def test_tstring_single_quotes():
 
 
 def test_tstring_empty():
+    """Test empty t-string"""
     code = """
     empty = t""
     """
@@ -97,6 +109,7 @@ def test_tstring_empty():
 
 
 def test_tstring_with_boolean():
+    """Test t-string with boolean expression"""
     code = """
     flag = true
     msg = t"Flag is {flag}"

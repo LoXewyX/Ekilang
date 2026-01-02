@@ -1,11 +1,10 @@
+from ekilang.lexer import Lexer
+from ekilang.parser import Parser
+from ekilang.runtime import execute
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from ekilang.lexer import Lexer
-from ekilang.parser import Parser
-from ekilang.runtime import execute
 
 
 def run(code: str):
@@ -21,6 +20,7 @@ x = 1; y = 2; z = x + y
 """
     )
     assert ns["z"] == 3
+
 
 def test_implicit_return():
     ns = run(
@@ -53,8 +53,8 @@ print(m["a"])
 
 
 def test_literals_for_loop_and_logic():
-        ns = run(
-                """
+    ns = run(
+        """
 total = 0
 data = [1, 2, 3]
 for v in data {
@@ -68,10 +68,10 @@ print(total)
 print(flag)
 print(nonev)
 """
-        )
-        assert ns["total"] == 5
-        assert ns["flag"] is True
-        assert ns["nonev"] is None
+    )
+    assert ns["total"] == 5
+    assert ns["flag"] is True
+    assert ns["nonev"] is None
 
 
 def test_block_lambda_basic():
@@ -227,6 +227,7 @@ r3 = calculate(5, 3, "sub")
     assert ns["r1"] == 8
     assert ns["r2"] == 15
     assert ns["r3"] == 2
+
 
 def test_f_strings():
     """Test f-string interpolation"""
@@ -450,6 +451,18 @@ lst += [5]
     )
     assert ns["lst"] == [1, 2, 3, 4, 5]
 
+def test_pow_assign():
+    """Test the **= operator"""
+    ns = run(
+        """
+x = 2
+y = 3
+x **= y
+print(x)  # Should print 8
+        """
+    )
+    assert ns["x"] == 8
+
 
 def test_list_repetition():
     """Test list repetition with * operator"""
@@ -568,6 +581,7 @@ coro = fetch_data()
         """
     )
     import asyncio
+
     result = asyncio.run(ns["coro"])
     assert result == 42
 
@@ -587,6 +601,7 @@ result = main()
         """
     )
     import asyncio
+
     result = asyncio.run(ns["result"])
     assert result == 200
 
@@ -631,6 +646,7 @@ result = main()
         """
     )
     import asyncio
+
     result = asyncio.run(ns["result"])
     assert result == "Hello, World"
 
@@ -729,7 +745,9 @@ use math::{sqrt as s, pi}
 val = s(pi)
         """
     )
-    assert round(ns["val"], 5) == round(__import__("math").sqrt(__import__("math").pi), 5)
+    assert round(ns["val"], 5) == round(
+        __import__("math").sqrt(__import__("math").pi), 5
+    )
 
 
 def test_if_elif_else():

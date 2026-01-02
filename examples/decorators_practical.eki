@@ -161,3 +161,23 @@ print()
 print("6. Chaining Transformations:")
 greeting = greet("Alice")
 print(greeting)
+
+# Fibonacci with Memoization
+# Tests caching pattern
+
+fn fib(n, cache) {
+    if cache[n] != -1 {
+        return cache[n]
+    }
+    if n < 2 {
+        cache[n] = n
+    } else {
+        cache[n] = fib(n - 1, cache) + fib(n - 2, cache)
+    }
+    return cache[n]
+}
+
+# Initialize cache with -1 for all values up to 35
+cache = [-1] * 36
+result = fib(35, cache)
+print(f"fib(35) = {result}")
