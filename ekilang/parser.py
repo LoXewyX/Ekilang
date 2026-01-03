@@ -1029,7 +1029,9 @@ class Parser:
                     break
         return SetLit(elements)
 
-    def _parse_call_args(self) -> Tuple[List[ExprNode | Starred], List[Tuple[str, ExprNode]] | None]:
+    def _parse_call_args(
+        self,
+    ) -> Tuple[List[ExprNode | Starred], List[Tuple[str, ExprNode]] | None]:
         """Parse function call arguments including *args and **kwargs."""
         args: List[ExprNode | Starred] = []
         kwargs: List[Tuple[str, ExprNode]] = []

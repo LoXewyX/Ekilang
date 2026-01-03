@@ -5,7 +5,7 @@ Tokenizes Ekilang source code into a stream of tokens.
 
 from typing import List
 from .types import Token
-from ._rust_lexer import tokenize
+from ._rust_lexer import tokenize  # pylint: disable=no-name-in-module
 
 
 KEYWORDS = {
@@ -34,6 +34,7 @@ KEYWORDS = {
     "continue",
     "class",
 }
+
 
 class Lexer:
     """Tokenizes Ekilang source code using Rust implementation."""

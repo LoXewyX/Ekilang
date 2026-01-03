@@ -197,13 +197,9 @@ class CodeGen:
             return ast.Name(id=fn_name, ctx=ast.Load())
         if isinstance(node, UnaryOp):
             if node.op == "-":
-                return ast.UnaryOp(
-                    op=ast.USub(), operand=self.expr(node.operand)
-                )
+                return ast.UnaryOp(op=ast.USub(), operand=self.expr(node.operand))
             if node.op == "not":
-                return ast.UnaryOp(
-                    op=ast.Not(), operand=self.expr(node.operand)
-                )
+                return ast.UnaryOp(op=ast.Not(), operand=self.expr(node.operand))
             raise TypeError(f"Unsupported unary op {node.op}")
         if isinstance(node, Name):
             return ast.Name(id=node.id, ctx=ast.Load())
@@ -253,9 +249,7 @@ class CodeGen:
             for a in node.args:
                 if isinstance(a, Starred):
                     py_args.append(
-                        ast.Starred(
-                            value=self.expr(a.value), ctx=ast.Load()
-                        )
+                        ast.Starred(value=self.expr(a.value), ctx=ast.Load())
                     )
                 else:
                     py_args.append(self.expr(a))
@@ -478,26 +472,16 @@ class CodeGen:
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=(
-                    [self.expr(node.condition)]
-                    if node.condition
-                    else []
-                ),
+                ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
             )
-            return ast.ListComp(
-                elt=self.expr(node.expr), generators=[comprehension]
-            )
+            return ast.ListComp(elt=self.expr(node.expr), generators=[comprehension])
         if isinstance(node, DictComp):
             # Build dict comprehension: {key: value for target in iter if condition}
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=(
-                    [self.expr(node.condition)]
-                    if node.condition
-                    else []
-                ),
+                ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
             )
             return ast.DictComp(
@@ -510,16 +494,10 @@ class CodeGen:
             comprehension = ast.comprehension(
                 target=ast.Name(id=node.target, ctx=ast.Store()),
                 iter=self.expr(node.iter),
-                ifs=(
-                    [self.expr(node.condition)]
-                    if node.condition
-                    else []
-                ),
+                ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
             )
-            return ast.SetComp(
-                elt=self.expr(node.expr), generators=[comprehension]
-            )
+            return ast.SetComp(elt=self.expr(node.expr), generators=[comprehension])
         if isinstance(node, Await):
             return ast.Await(value=self.expr(node.value))
         if isinstance(node, Cast):
@@ -605,9 +583,7 @@ class CodeGen:
                 else cast(list[ast.stmt], [ast.Pass()])
             )
             decorator_list = (
-                [self.expr(d) for d in node.decorators]
-                if node.decorators
-                else []
+                [self.expr(d) for d in node.decorators] if node.decorators else []
             )
             return ast.ClassDef(
                 name=node.name,
@@ -638,9 +614,7 @@ class CodeGen:
                     list[ast.expr], [ast.Name(id=node.name, ctx=ast.Store())]
                 )
 
-            return ast.Assign(
-                targets=targets, value=self.expr(node.value)
-            )
+            return ast.Assign(targets=targets, value=self.expr(node.value))
         if isinstance(node, Assign):
             # Handle both Name and Attr targets
 
@@ -658,9 +632,7 @@ class CodeGen:
                 # Change ctx to Store
                 if hasattr(target, "ctx"):
                     target.ctx = ast.Store()  # type: ignore[attr-defined]
-            return ast.Assign(
-                targets=[target], value=self.expr(node.value)
-            )
+            return ast.Assign(targets=[target], value=self.expr(node.value))
         if isinstance(node, AugAssign):
             # Handle both Name and Attr targets
 
@@ -689,21 +661,13 @@ class CodeGen:
             return ast.Expr(value=self.expr(cast(ExprNode, node.value)))
         if isinstance(node, Return):
             return ast.Return(
-                value=(
-                    self.expr(node.value)
-                    if node.value is not None
-                    else None
-                )
+                value=(self.expr(node.value) if node.value is not None else None)
             )
         if isinstance(node, Yield):
             # In Python AST, a bare yield in statement position is an Expr(Yield(...))
             return ast.Expr(
                 value=ast.Yield(
-                    value=(
-                        self.expr(node.value)
-                        if node.value is not None
-                        else None
-                    )
+                    value=(self.expr(node.value) if node.value is not None else None)
                 )
             )
         if isinstance(node, If):
@@ -719,17 +683,19 @@ class CodeGen:
             for case in reversed(node.cases):
                 # Wildcard cases may be represented as None or an empty list
                 is_wildcard = case.patterns == [] or len(case.patterns) == 0
-                test = ast.Constant(True) if is_wildcard else ast.Compare(
-                    left=subject,
-                    ops=[ast.In()],
-                    comparators=[
-                        ast.List(
-                            elts=[
-                                self.expr(p) for p in case.patterns
-                            ],
-                            ctx=ast.Load(),
-                        )
-                    ],
+                test = (
+                    ast.Constant(True)
+                    if is_wildcard
+                    else ast.Compare(
+                        left=subject,
+                        ops=[ast.In()],
+                        comparators=[
+                            ast.List(
+                                elts=[self.expr(p) for p in case.patterns],
+                                ctx=ast.Load(),
+                            )
+                        ],
+                    )
                 )
                 if case.guard:
                     test = ast.BoolOp(
@@ -801,9 +767,7 @@ class CodeGen:
                 ),
             )
             decorator_list = (
-                [self.expr(d) for d in node.decorators]
-                if node.decorators
-                else []
+                [self.expr(d) for d in node.decorators] if node.decorators else []
             )
             fn_def = ast.FunctionDef(
                 name=node.name,
@@ -850,9 +814,7 @@ class CodeGen:
                 ),
             )
             decorator_list = (
-                [self.expr(d) for d in node.decorators]
-                if node.decorators
-                else []
+                [self.expr(d) for d in node.decorators] if node.decorators else []
             )
             fn_def = ast.AsyncFunctionDef(
                 name=node.name,
@@ -924,7 +886,7 @@ def execute(
         if not ns.get("__ekilang_builtins_loaded__"):
             ns.update(BUILTINS)
             ns["__ekilang_builtins_loaded__"] = True
-        exec(code_obj, ns)
+        exec(code_obj, ns)  # pylint: disable=exec-used
         return ns
 
     # Process Use statements first to load .eki modules
@@ -994,7 +956,7 @@ def execute(
     if "__name__" not in ns:
         ns["__name__"] = "__main__"
 
-    exec(code, ns, ns)
+    exec(code, ns, ns)  # pylint: disable=exec-used
     gc.collect()
     return ns
 

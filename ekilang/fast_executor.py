@@ -30,7 +30,7 @@ from .types import (
     Fn,
     Module,
 )
-from ._rust_lexer import apply_binop, apply_compare
+from ._rust_lexer import apply_binop, apply_compare  # pylint: disable=no-name-in-module
 
 # Minimal opcode set for benchmark patterns
 LOAD_CONST = "LOAD_CONST"
@@ -316,9 +316,7 @@ class Compiler:
                 if ok:
                     # Implicit return None
                     if not func_compiler.code or func_compiler.code[-1][0] != RETURN:
-                        func_compiler.emit(
-                            LOAD_CONST, func_compiler.add_const(None)
-                        )
+                        func_compiler.emit(LOAD_CONST, func_compiler.add_const(None))
                         func_compiler.emit(RETURN, None)
 
                     func_prog = FastProgram(
@@ -364,6 +362,7 @@ def run_fast(program: FastProgram, globals_ns: Dict[str, Any]) -> Dict[str, Any]
 
     # Add compiled functions to environment
     for func_name, (func_prog, params) in program.functions.items():
+
         def make_func(prog: FastProgram, param_names: List[str]) -> Callable[..., Any]:
             def func(*args: Any) -> Any | None:
                 local_env = dict(env)

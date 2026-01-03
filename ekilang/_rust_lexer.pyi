@@ -1,9 +1,9 @@
 """Type stub for _rust_lexer Rust extension module (PyO3)."""
 
-from typing import List, Any
-from .lexer import Token
+from typing import Any, List
+from ekilang.lexer import Token
 
-def tokenize(source: str) -> List[Token]:
+def tokenize(source: str) -> List[Token]:  # pylint: disable=unused-argument
     """Tokenize Ekilang source code.
 
     Args:
@@ -13,7 +13,9 @@ def tokenize(source: str) -> List[Token]:
         A list of Token objects with type, value, line, col attributes
     """
 
-def apply_binop(left: Any, op: str, right: Any) -> Any:
+def apply_binop(
+    left: Any, op: str, right: Any  # pylint: disable=unused-argument
+) -> Any:
     """Apply a binary operation efficiently using Rust.
 
     Args:
@@ -25,7 +27,9 @@ def apply_binop(left: Any, op: str, right: Any) -> Any:
         The result of the operation
     """
 
-def apply_compare(left: Any, op: str, right: Any) -> bool:
+def apply_compare(
+    left: Any, op: str, right: Any  # pylint: disable=unused-argument
+) -> bool:
     """Apply a comparison operation efficiently using Rust.
 
     Args:
