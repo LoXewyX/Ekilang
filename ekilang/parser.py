@@ -651,7 +651,7 @@ class Parser:
 
     def _parse_comparators(self, left: ExprNode) -> ExprNode:
         """Parse chained comparison operators following an initial left-side node."""
-        node: ExprNode = left  # type: ignore[assignment]
+        node: ExprNode = left
         while True:
             t = self.peek()
             if t.type == "OP" and t.value in {"==", "!=", ">", "<", ">=", "<="}:

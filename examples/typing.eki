@@ -1,32 +1,153 @@
-fn add(a: int, b: int) -> int {
-  a + b
+# Comprehensive type annotation examples in Ekilang
+
+use typing::{List, Dict, Optional, Tuple}
+
+# Type aliases - define custom type names
+NumType = int | float
+TextType = str
+IntList = List[int]
+IntDict = Dict[str, int]
+
+# ============================================
+# Variable Type Annotations
+# ============================================
+
+count: int = 42
+name: str = "Alice"
+value: float = 3.14
+is_active: bool = true
+
+# Type aliases in variable annotations
+number: NumType = 42
+text: TextType = "hello"
+
+# Generic type annotations
+numbers: IntList = [1, 2, 3, 4, 5]
+config: IntDict = {"timeout": 30, "retries": 3}
+pairs: List[Tuple[str, int]] = [("a", 1), ("b", 2)]
+
+# Optional types
+maybe_name: Optional[str] = "Bob"
+
+# ============================================
+# Function Type Annotations with Generics
+# ============================================
+
+fn get_numbers() -> List[int] {
+    return [1, 2, 3, 4, 5]
 }
 
-fn multiply(x: int, y: int) -> int {
-  x * y
+fn get_config() -> Dict[str, int] {
+    return {"timeout": 30, "retries": 3}
 }
 
-fn greet(name: str) -> str {
-  "Hello, " + name + "!"
+fn process_list(items: List[int]) -> int {
+    total = 0
+    for item in items {
+        total = total + item
+    }
+    return total
 }
 
-result1: int = add(5, 3)
-result2: int = multiply(4, 7)
-message: str = greet("World")
-
-print("5 + 3 =", result1)
-print("4 * 7 =", result2)
-print(message)
-
-async fn fetch_user(id: int) -> str {
-  "User #" + str(id)
+fn combine_dicts(d1: Dict[str, int], d2: Dict[str, int]) -> Dict[str, int] {
+    result = dict()
+    for key in d1 {
+        result[key] = d1[key]
+    }
+    for key in d2 {
+        result[key] = d2[key]
+    }
+    return result
 }
 
-async fn main() {
-  user = await fetch_user(42)
-  user
+fn find_item(items: List[str], target: str) -> Optional[int] {
+    for i in range(len(items)) {
+        if items[i] == target {
+            return i
+        }
+    }
+    return null
 }
 
-use asyncio
-user_info = asyncio.run(main())
-print(user_info)
+fn first_and_last(items: List[int]) -> Tuple[int, int] {
+    return (items[0], items[len(items) - 1])
+}
+
+# ============================================
+# Union Types (in type aliases and return types)
+# ============================================
+
+fn parse_value(value) -> int {
+    if type(value) == "str" {
+        return value.length()
+    } else {
+        return value
+    }
+}
+
+fn format_output(data) -> str {
+    if type(data) == "list" {
+        return data.to_string()
+    } else {
+        return str(data)
+    }
+}
+
+# ============================================
+# Main execution
+# ============================================
+
+fn main() {
+    print("=== Type Annotation Examples ===")
+    
+    print("\n1. Basic type annotations:")
+    print("count:", count)
+    print("name:", name)
+    print("value:", value)
+    
+    print("\n2. Type aliases:")
+    print("number:", number)
+    print("text:", text)
+    
+    print("\n3. Generic types:")
+    print("numbers:", numbers)
+    print("config:", config)
+    
+    print("\n4. Function with generic return type:")
+    result_numbers = get_numbers()
+    print("get_numbers():", result_numbers)
+    
+    result_config = get_config()
+    print("get_config():", result_config)
+    
+    print("\n5. Function with generic parameter:")
+    sum_result = process_list([1, 2, 3, 4, 5])
+    print("process_list([1,2,3,4,5]):", sum_result)
+    
+    print("\n6. Combining dictionaries:")
+    d1 = {"a": 1, "b": 2}
+    d2 = {"c": 3, "d": 4}
+    combined = combine_dicts(d1, d2)
+    print("combined dicts:", combined)
+    
+    print("\n7. Finding items:")
+    items = ["apple", "banana", "cherry"]
+    found = find_item(items, "banana")
+    print("find_item(items, 'banana'):", found)
+    
+    print("\n8. First and last:")
+    nums = [10, 20, 30, 40, 50]
+    extremes = first_and_last(nums)
+    print("first_and_last([10,20,30,40,50]):", extremes)
+    
+    print("\n9. Union type handling:")
+    int_result = parse_value(42)
+    print("parse_value(42):", int_result)
+    
+    str_result = parse_value("hello")
+    print("parse_value('hello'):", str_result)
+    
+    print("\n=== All type annotations working! ===")
+}
+
+main()

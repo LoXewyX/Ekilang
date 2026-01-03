@@ -5,15 +5,15 @@ Measures: Execution time, memory consumption
 
 import argparse
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 import os
 import sys
 import time
 import psutil
-from ekilang.fast_executor import Compiler, FastProgram, run_fast
+from ekilang.executor import execute
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser, Use
-from ekilang.runtime import compile_module, execute
+from ekilang.runtime import compile_module
 from ekilang.builtins import BUILTINS
 
 # Add current dir to path for ekilang package
@@ -21,12 +21,6 @@ ROOT = os.path.abspath(os.path.dirname(__file__))
 PARENT = os.path.dirname(ROOT)
 if PARENT not in sys.path:
     sys.path.insert(0, PARENT)
-
-
-def compile_simple_loop(mod: Any) -> Optional[FastProgram]:
-    """Compile module to fast bytecode if supported; returns None on fallback."""
-    compiler = Compiler()
-    return compiler.compile(mod)
 
 
 def run_repeated(
@@ -61,7 +55,7 @@ def run_repeated(
 
 
 def run_ekilang_benchmark(
-    name: str, filepath: str | Path, runs: int = 5, warmup: int = 0, fast: bool = False
+    name: str, filepath: str | Path, runs: int = 5, warmup: int = 0
 ) -> Dict[str, Any]:
     """Run a Ekilang benchmark file multiple times and report aggregated metrics"""
     print(f"\n{'='*60}")
@@ -82,20 +76,15 @@ def run_ekilang_benchmark(
     code_obj = None
     compile_time = None
     shared_ns = None
-    fast_prog: Optional[FastProgram] = None
     if not has_use:
         compile_start = time.perf_counter()
         code_obj = compile_module(mod)
         compile_time = time.perf_counter() - compile_start
         shared_ns = dict(BUILTINS)
         shared_ns["__ekilang_builtins_loaded__"] = True
-        if fast:
-            fast_prog = compile_simple_loop(mod)
 
     def exec_cached() -> None:
-        if fast and fast_prog is not None and shared_ns is not None:
-            run_fast(fast_prog, shared_ns)
-        elif code_obj:
+        if code_obj:
             execute(mod, globals_ns=shared_ns, code_obj=code_obj)
         else:
             execute(mod)
@@ -118,7 +107,6 @@ def run_ekilang_benchmark(
         "time_p95": agg["p95"],
         "memory": agg["mem"],
         "cpu": agg["cpu"],
-        "fast": bool(fast and fast_prog is not None),
     }
 
 
@@ -245,7 +233,7 @@ def nqueens_bench_py(n: int) -> int:
 
 
 def run_python_nqueens_benchmark(
-    name: str, N: int = 12, runs: int = 3, warmup: int = 1
+    name: str, n: int = 12, runs: int = 3, warmup: int = 1
 ) -> Dict[str, Any]:
     """Run N-Queens benchmark in pure Python for comparison"""
     print(f"\n{'='*60}")
@@ -253,10 +241,10 @@ def run_python_nqueens_benchmark(
     print(f"{'='*60}")
 
     def run() -> None:
-        result: int = nqueens_bench_py(N)
+        result: int = nqueens_bench_py(n)
         # Print only once for clarity
         if runs == 1:
-            print(f"N-Queens solutions for N={N}: {result}")
+            print(f"N-Queens solutions for N={n}: {result}")
 
     agg = run_repeated(run, runs=runs, warmup=warmup)
     print(
@@ -285,11 +273,6 @@ def main() -> None:
     parser.add_argument(
         "--warmup", type=int, default=0, help="Warmup runs (not measured)"
     )
-    parser.add_argument(
-        "--fast",
-        action="store_true",
-        help="Use fast-path executor when available (no use imports)",
-    )
     args = parser.parse_args()
 
     print("\n" + "=" * 60)
@@ -308,7 +291,6 @@ def main() -> None:
             bench_file,
             runs=args.runs,
             warmup=args.warmup,
-            fast=args.fast,
         )
         if mod_result:
             results.append(mod_result)
@@ -327,13 +309,12 @@ def main() -> None:
             nqueens_file,
             runs=args.runs,
             warmup=args.warmup,
-            fast=args.fast,
         )
         if ny_result:
             results.append(ny_result)
 
     py_result = run_python_nqueens_benchmark(
-        "Python: N-Queens Benchmark (N=12)", N=12, runs=args.runs, warmup=args.warmup
+        "Python: N-Queens Benchmark (N=12)", n=12, runs=args.runs, warmup=args.warmup
     )
     if py_result:
         results.append(py_result)
@@ -349,9 +330,8 @@ def main() -> None:
                     if r.get("compile_time") is not None
                     else ""
                 )
-                fast_str = " fast" if r.get("fast") else ""
                 print(
-                    f"  {r['name']:<32} parse {r['parse_time']:.3f}s |{compile_str} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB{fast_str}"
+                    f"  {r['name']:<32} parse {r['parse_time']:.3f}s |{compile_str} exec {r['time_min']:.3f}/{r['time_mean']:.3f}/{r['time_p95']:.3f}s | mem {r['memory']:.2f}MB"
                 )
 
                 # Calculate overhead vs Python equivalent

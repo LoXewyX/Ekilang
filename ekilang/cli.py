@@ -11,9 +11,10 @@ import ast
 import traceback
 from typing import Any, Dict, Literal
 
+from .executor import execute
 from .lexer import Lexer
 from .parser import Parser
-from .runtime import execute, CodeGen
+from .runtime import CodeGen
 
 
 def run_source(

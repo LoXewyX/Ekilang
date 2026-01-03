@@ -1,19 +1,23 @@
-from ekilang.lexer import Lexer
-from ekilang.parser import Parser
-from ekilang.runtime import execute
+"""Basic tests for Ekilang features."""
+
 from pathlib import Path
 import sys
+from ekilang.lexer import Lexer
+from ekilang.parser import Parser
+from ekilang.executor import execute
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def run(code: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)
 
 
 def test_semicolon_separator():
+    """Test semicolon as statement separator"""
     ns = run(
         """
 x = 1; y = 2; z = x + y
@@ -23,6 +27,7 @@ x = 1; y = 2; z = x + y
 
 
 def test_implicit_return():
+    """Test implicit return of last expression in function"""
     ns = run(
         """
 fn add(a, b) {
@@ -36,6 +41,7 @@ print(r)
 
 
 def test_assign_augassign_lists_maps_lambda():
+    """Test assignment, augmented assignment, lists, maps, and lambda functions"""
     ns = run(
         """
 x = 1
@@ -53,6 +59,7 @@ print(m["a"])
 
 
 def test_literals_for_loop_and_logic():
+    """Test literals, for loop, and logical operators"""
     ns = run(
         """
 total = 0

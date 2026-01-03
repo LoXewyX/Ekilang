@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
-from ekilang.runtime import execute
+from ekilang.executor import execute
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

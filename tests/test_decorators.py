@@ -2,7 +2,7 @@
 
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
-from ekilang.runtime import execute
+from ekilang.executor import execute
 
 
 def test_simple_function_decorator():

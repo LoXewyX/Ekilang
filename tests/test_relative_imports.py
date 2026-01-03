@@ -3,7 +3,7 @@
 import os
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
-from ekilang.runtime import execute, MODULE_CACHE
+from ekilang.executor import execute, MODULE_CACHE
 
 
 def test_relative_import_current_dir():

@@ -2,19 +2,21 @@ from pathlib import Path
 import sys
 from ekilang.lexer import Lexer
 from ekilang.parser import Parser
-from ekilang.runtime import execute
+from ekilang.executor import execute
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 
 def run(code: str):
+    """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()
     mod = Parser(tokens).parse()
     return execute(mod)
 
 
 def test_simple_class():
+    """Test defining and instantiating a simple class"""
     code = """
     class Person {
         fn __init__(self, name) {
@@ -28,6 +30,7 @@ def test_simple_class():
 
 
 def test_class_with_method():
+    """Test class with methods"""
     code = """
     class Counter {
         fn __init__(self) {
@@ -52,6 +55,7 @@ def test_class_with_method():
 
 
 def test_class_with_properties():
+    """Test class with properties and area calculation"""
     code = """
     class Rectangle {
         fn __init__(self, width, height) {
@@ -71,6 +75,7 @@ def test_class_with_properties():
 
 
 def test_class_inheritance():
+    """Test class inheritance and method overriding"""
     code = """
     class Animal {
         fn __init__(self, name) {
@@ -97,6 +102,7 @@ def test_class_inheritance():
 
 
 def test_class_multiple_instances():
+    """Test creating multiple instances of a class"""
     code = """
     class Point {
         fn __init__(self, x, y) {
@@ -115,6 +121,7 @@ def test_class_multiple_instances():
 
 
 def test_class_with_default_params():
+    """Test class with default parameters in __init__"""
     code = """
     class Config {
         fn __init__(self, timeout = 30) {
@@ -130,6 +137,7 @@ def test_class_with_default_params():
 
 
 def test_class_str_method():
+    """Test class with __str__ method"""
     code = """
     class Book {
         fn __init__(self, title) {
@@ -148,6 +156,7 @@ def test_class_str_method():
 
 
 def test_empty_class():
+    """Test defining and instantiating an empty class"""
     code = """
     class Empty {
     }
