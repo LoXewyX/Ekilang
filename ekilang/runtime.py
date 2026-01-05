@@ -56,6 +56,7 @@ from .types import (
     Yield,
 )
 
+
 class HasCtx(Protocol):
     """Protocol for AST nodes that have a ctx attribute."""
 
@@ -99,6 +100,12 @@ OP_MAP: Dict[str, ast.operator | ast.cmpop] = {
     "//=": ast.FloorDiv(),
 }
 
+_SAFE_NAMES: Dict[str, str] = {
+    "True": "__ekilang_True",
+    "False": "__ekilang_False",
+    "None": "__ekilang_None",
+}
+
 
 class CodeGen:
     """Generates Python AST from Ekilang AST."""
@@ -120,6 +127,14 @@ class CodeGen:
         """Generate unique name for anonymous lambda function."""
         self.lambda_counter += 1
         return f"__lambda_{self.lambda_counter}"
+
+    def _safe_name(self, name: str) -> str:
+        """Convert Ekilang names to safe Python identifiers.
+
+        Python's AST doesn't allow True, False, None as identifiers,
+        so we mangle them to __ekilang_* variants.
+        """
+        return _SAFE_NAMES.get(name, name)
 
     def expr(
         self,
@@ -201,7 +216,7 @@ class CodeGen:
                 return ast.UnaryOp(op=ast.Not(), operand=self.expr(node.operand))
             raise TypeError(f"Unsupported unary op {node.op}")
         if isinstance(node, Name):
-            return ast.Name(id=node.id, ctx=ast.Load())
+            return ast.Name(id=self._safe_name(node.id), ctx=ast.Load())
         if isinstance(node, BinOp):
             if node.op in {
                 ">",
@@ -469,7 +484,7 @@ class CodeGen:
         if isinstance(node, ListComp):
             # Build list comprehension: [expr for target in iter if condition]
             comprehension = ast.comprehension(
-                target=ast.Name(id=node.target, ctx=ast.Store()),
+                target=ast.Name(id=self._safe_name(node.target), ctx=ast.Store()),
                 iter=self.expr(node.iter),
                 ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
@@ -478,7 +493,7 @@ class CodeGen:
         if isinstance(node, DictComp):
             # Build dict comprehension: {key: value for target in iter if condition}
             comprehension = ast.comprehension(
-                target=ast.Name(id=node.target, ctx=ast.Store()),
+                target=ast.Name(id=self._safe_name(node.target), ctx=ast.Store()),
                 iter=self.expr(node.iter),
                 ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
@@ -491,7 +506,7 @@ class CodeGen:
         if isinstance(node, SetComp):
             # Build set comprehension: {expr for target in iter if condition}
             comprehension = ast.comprehension(
-                target=ast.Name(id=node.target, ctx=ast.Store()),
+                target=ast.Name(id=self._safe_name(node.target), ctx=ast.Store()),
                 iter=self.expr(node.iter),
                 ifs=([self.expr(node.condition)] if node.condition else []),
                 is_async=0,
@@ -601,7 +616,8 @@ class CodeGen:
                     [
                         ast.Tuple(
                             elts=[
-                                ast.Name(id=name, ctx=ast.Store()) for name in node.name
+                                ast.Name(id=self._safe_name(name), ctx=ast.Store())
+                                for name in node.name
                             ],
                             ctx=ast.Store(),
                         )
@@ -610,7 +626,8 @@ class CodeGen:
             else:
                 # Single name: regular assignment
                 targets = cast(
-                    list[ast.expr], [ast.Name(id=node.name, ctx=ast.Store())]
+                    list[ast.expr],
+                    [ast.Name(id=self._safe_name(node.name), ctx=ast.Store())],
                 )
 
             return ast.Assign(targets=targets, value=self.expr(node.value))
@@ -618,7 +635,7 @@ class CodeGen:
             # Handle both Name and Attr targets
 
             if isinstance(node.target, Name):
-                target = ast.Name(id=node.target.id, ctx=ast.Store())
+                target = ast.Name(id=self._safe_name(node.target.id), ctx=ast.Store())
             elif isinstance(node.target, Attr):
                 target = ast.Attribute(
                     value=self.expr(node.target.value),
@@ -636,7 +653,7 @@ class CodeGen:
             # Handle both Name and Attr targets
 
             if isinstance(node.target, Name):
-                target = ast.Name(id=node.target.id, ctx=ast.Store())
+                target = ast.Name(id=self._safe_name(node.target.id), ctx=ast.Store())
             elif isinstance(node.target, Attr):
                 target = ast.Attribute(
                     value=self.expr(node.target.value),
@@ -712,10 +729,15 @@ class CodeGen:
         if isinstance(node, For):
             # node.target is always a list[Name]; use single Name when possible
             if len(node.target) == 1:
-                target = ast.Name(id=node.target[0].id, ctx=ast.Store())
+                target = ast.Name(
+                    id=self._safe_name(node.target[0].id), ctx=ast.Store()
+                )
             else:
                 target = ast.Tuple(
-                    elts=[ast.Name(id=t.id, ctx=ast.Store()) for t in node.target],
+                    elts=[
+                        ast.Name(id=self._safe_name(t.id), ctx=ast.Store())
+                        for t in node.target
+                    ],
                     ctx=ast.Store(),
                 )
             return ast.For(
