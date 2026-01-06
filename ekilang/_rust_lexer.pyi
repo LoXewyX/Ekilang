@@ -40,3 +40,55 @@ def apply_compare(
     Returns:
         The boolean result of the comparison
     """
+
+# Parser helpers
+def get_operator_precedence(op: str) -> int:  # pylint: disable=unused-argument
+    """Get operator precedence level (higher = higher precedence)."""
+
+def is_aug_assign_op(op: str) -> bool:  # pylint: disable=unused-argument
+    """Check if operator is augmented assignment (+=, -=, etc.)."""
+
+def is_comparison_op(op: str) -> bool:  # pylint: disable=unused-argument
+    """Check if operator is comparison (<, >, ==, etc.)."""
+
+def is_binary_op(op: str) -> bool:  # pylint: disable=unused-argument
+    """Check if operator is binary arithmetic."""
+
+def is_unary_op(op: str) -> bool:  # pylint: disable=unused-argument
+    """Check if operator is unary (-, ~, not)."""
+
+def is_statement_keyword(kw: str) -> bool:  # pylint: disable=unused-argument
+    """Check if keyword starts a statement."""
+
+def is_right_associative(op: str) -> bool:  # pylint: disable=unused-argument
+    """Check if operator is right-associative."""
+
+def is_valid_token_type(type_str: str) -> bool:  # pylint: disable=unused-argument
+    """Validate token type string."""
+
+def canonicalize_operator(op: str) -> str:  # pylint: disable=unused-argument
+    """Return canonical form of operator."""
+
+def validate_interpolation_braces(
+    content: str,
+) -> bool:  # pylint: disable=unused-argument
+    """Check if string interpolation braces are balanced."""
+
+def is_valid_id_start(ch: str) -> bool:  # pylint: disable=unused-argument
+    """Check if character can start an identifier."""
+
+def is_valid_id_continue(ch: str) -> bool:  # pylint: disable=unused-argument
+    """Check if character can continue an identifier."""
+
+def validate_operators(
+    operators: List[str],
+) -> List[bool]:  # pylint: disable=unused-argument
+    """Batch validate multiple operators."""
+
+def classify_operator(
+    op: str,
+) -> tuple[bool, bool, bool, bool]:  # pylint: disable=unused-argument
+    """Classify operator: (is_assign, is_aug_assign, is_comparison, is_binary)."""
+
+def classify_keyword(kw: str) -> int:  # pylint: disable=unused-argument
+    """Classify keyword: 0=not_keyword, 1=definition, 2=control_flow, 3=simple_stmt, 4=expression."""

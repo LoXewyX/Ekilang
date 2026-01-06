@@ -4,9 +4,7 @@ Converts token stream into Abstract Syntax Tree (AST).
 """
 
 from __future__ import annotations
-
 from typing import List, Optional, Tuple
-
 from .types import (
     Statement,
     ExprNode,
@@ -63,43 +61,38 @@ from .types import (
     Try,
     ExceptHandler,
 )
-
 from .lexer import Token, Lexer
-
-# Operator constants
-AUG_ASSIGN_OPS = {
-    "+=",
-    "-=",
-    "*=",
-    "**=",
-    "/=",
-    "//=",
-    "%=",
-    "&=",
-    "|=",
-    "^=",
-    "<<=",
-    ">>=",
-}
+from ._rust_lexer import (
+    is_statement_keyword,
+    is_aug_assign_op,
+    is_comparison_op,
+    is_unary_op,
+)
 
 
 class Parser:
     """Recursive descent parser for Ekilang language."""
 
+    __slots__ = ("tokens", "i", "_len")
+
     def __init__(self, tokens: List[Token]) -> None:
         self.tokens: List[Token] = tokens
         self.i: int = 0
-        self._len: int = len(tokens)  # Cache for faster bounds checking
+        self._len: int = len(tokens)
 
     def peek(self) -> Token:
         """Look at current token without consuming it."""
-        # Optimized: faster than min() for bounds checking
-        idx = self.i if self.i < self._len else self._len - 1
-        return self.tokens[idx]
+        i = self.i
+        tokens = self.tokens
+        return tokens[i] if i < self._len else tokens[-1]
 
     def match(self, type_: str, value: Optional[str] = None) -> Token:
         """Consume and return token if it matches, otherwise raise SyntaxError."""
-        tok = self.peek()
+        tokens = self.tokens
+        if self.i >= self._len:
+            tok = tokens[-1]
+        else:
+            tok = tokens[self.i]
         if tok.type != type_ or (value is not None and tok.value != value):
             raise SyntaxError(f"Expected {type_} {value or ''} at {tok.line}:{tok.col}")
         self.i += 1
@@ -107,7 +100,9 @@ class Parser:
 
     def accept(self, type_: str, value: Optional[str] = None) -> Optional[Token]:
         """Consume and return token if it matches, otherwise return None."""
-        tok = self.peek()
+        if self.i >= self._len:
+            return None
+        tok = self.tokens[self.i]
         if tok.type == type_ and (value is None or tok.value == value):
             self.i += 1
             return tok
@@ -129,28 +124,30 @@ class Parser:
         decorators = self._parse_decorators()
         tok = self.peek()
 
-        # Handle keyword statements
+        # Handle keyword statements - use Rust classifier for fast lookup
         if tok.type == "KW":
-            if tok.value == "class":
-                return self._parse_class(decorators)
-            if tok.value == "use":
-                return self.use_stmt()
-            if tok.value == "for":
-                return self.for_stmt()
-            if tok.value in {"break", "continue", "yield", "return"}:
-                return self._parse_simple_stmt(tok.value)
-            if tok.value == "async":
-                return self._parse_async_fn(decorators)
-            if tok.value == "fn":
-                return self.fn_def(decorators)
-            if tok.value == "if":
-                return self.if_stmt()
-            if tok.value == "match":
-                return self.match_stmt()
-            if tok.value == "while":
-                return self.while_stmt()
-            if tok.value == "try":
-                return self.try_stmt()
+            # Use Rust helper to check if it's a statement keyword
+            if is_statement_keyword(tok.value):
+                if tok.value == "class":
+                    return self._parse_class(decorators)
+                if tok.value == "use":
+                    return self.use_stmt()
+                if tok.value == "for":
+                    return self.for_stmt()
+                if tok.value in {"break", "continue", "yield", "return"}:
+                    return self._parse_simple_stmt(tok.value)
+                if tok.value == "async":
+                    return self._parse_async_fn(decorators)
+                if tok.value == "fn":
+                    return self.fn_def(decorators)
+                if tok.value == "if":
+                    return self.if_stmt()
+                if tok.value == "match":
+                    return self.match_stmt()
+                if tok.value == "while":
+                    return self.while_stmt()
+                if tok.value == "try":
+                    return self.try_stmt()
 
         # Handle ID-based statements (assignments, aug-assigns, unpacking)
         if tok.type == "ID":
@@ -188,19 +185,19 @@ class Parser:
     def _parse_simple_stmt(self, keyword: str) -> Break | Continue | Yield | Return:
         """Parse break, continue, yield, or return statements."""
         self.match("KW", keyword)
-        
+
         # Fast path for break/continue (no expression)
         if keyword in ("break", "continue"):
             self.accept("NL")
             return Break() if keyword == "break" else Continue()
-        
+
         # yield and return have optional expressions
         if self.peek().type in ("NL", "EOF", "}"):
             val = None
         else:
             val = self.expr()
         self.accept("NL")
-        
+
         return Yield(val) if keyword == "yield" else Return(val)
 
     def _parse_id_stmt(self) -> Let | Assign | AugAssign | None:
@@ -208,6 +205,7 @@ class Parser:
         Returns the statement node or None if ID should be re-parsed as expression."""
         save_i = self.i
         name_tok = self.match("ID")
+        tokens = self.tokens
 
         # Check for type annotation: ID : type = value
         if self.accept(":"):
@@ -227,8 +225,11 @@ class Parser:
             self.accept("NL")
             return Assign(Name(name_tok.value), value)
 
-        for op in AUG_ASSIGN_OPS:
-            if self.accept("OP", op):
+        # Use Rust helper for faster aug-assign check - direct call without fallback
+        if self.i < self._len:
+            peek_op = tokens[self.i]
+            if peek_op.type == "OP" and is_aug_assign_op(peek_op.value):
+                op = self.match("OP").value
                 value = self.expr()
                 self.accept("NL")
                 return AugAssign(Name(name_tok.value), op, value)
@@ -276,7 +277,20 @@ class Parser:
             self.match("OP", ":")
             type_annotation = self.parse_type()
 
-        aug_ops_with_assign = {"="} | AUG_ASSIGN_OPS
+        aug_ops_with_assign = {"="} | {
+            "+=",
+            "-=",
+            "*=",
+            "**=",
+            "/=",
+            "//=",
+            "%=",
+            "&=",
+            "|=",
+            "^=",
+            "<<=",
+            ">>=",
+        }
         if self.peek().type == "OP" and self.peek().value in aug_ops_with_assign:
             op = self.peek().value
             self.match("OP", op)
@@ -466,27 +480,27 @@ class Parser:
                 continue
             body.append(self.statement())
         self.accept("NL")
-        
+
         handlers: List[ExceptHandler] = []
         orelse: Optional[List[Statement]] = None
         finalbody: Optional[List[Statement]] = None
-        
+
         # Parse except handlers
         while self.peek().type == "KW" and self.peek().value == "except":
             self.match("KW", "except")
-            
+
             # Parse exception type (optional)
             exc_type: Optional[str] = None
             exc_name: Optional[str] = None
-            
+
             if self.peek().type == "ID":
                 exc_type = self.match("ID").value
-                
+
                 # Check for 'as' clause
                 if self.peek().type == "KW" and self.peek().value == "as":
                     self.match("KW", "as")
                     exc_name = self.match("ID").value
-            
+
             self.match("{")
             handler_body: List[Statement] = []
             while not self.accept("}"):
@@ -494,9 +508,11 @@ class Parser:
                     continue
                 handler_body.append(self.statement())
             self.accept("NL")
-            
-            handlers.append(ExceptHandler(type=exc_type, name=exc_name, body=handler_body))
-        
+
+            handlers.append(
+                ExceptHandler(type=exc_type, name=exc_name, body=handler_body)
+            )
+
         # Parse optional else block
         if self.peek().type == "KW" and self.peek().value == "else":
             self.match("KW", "else")
@@ -507,7 +523,7 @@ class Parser:
                     continue
                 orelse.append(self.statement())
             self.accept("NL")
-        
+
         # Parse optional finally block
         if self.peek().type == "KW" and self.peek().value == "finally":
             self.match("KW", "finally")
@@ -518,7 +534,7 @@ class Parser:
                     continue
                 finalbody.append(self.statement())
             self.accept("NL")
-        
+
         return Try(body=body, handlers=handlers, orelse=orelse, finalbody=finalbody)
 
     def for_stmt(self) -> For:
@@ -629,21 +645,23 @@ class Parser:
 
     def named_expr(self) -> ExprNode:
         """Parse named expression with walrus operator (:=).
-        
+
         This handles the lowest precedence operators that can appear in expressions
         (like the walrus operator), after pipes.
         """
         node = self.pipe_expr()
-        
+
         # Check for walrus operator (:=)
         # Named expressions can appear in parentheses, function arguments, etc.
         if self.peek().type == "OP" and self.peek().value == ":=":
             # Ensure left side is a Name
             if isinstance(node, Name):
                 self.match("OP", ":=")
-                value = self.cast_expr()  # Don't recurse - parse the right side without walrus
+                value = (
+                    self.cast_expr()
+                )  # Don't recurse - parse the right side without walrus
                 return NamedExpr(target=node.id, value=value)
-        
+
         return node
 
     def pipe_expr(self) -> ExprNode:
@@ -700,23 +718,38 @@ class Parser:
     def or_expr(self) -> ExprNode:
         """Parse or expression."""
         node = self.and_expr()
-        while self.peek().type == "KW" and self.peek().value == "or":
-            self.match("KW", "or")
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "KW"
+            and tokens[self.i].value == "or"
+        ):
+            self.i += 1
             node = BinOp(node, "or", self.and_expr())
         return node
 
     def and_expr(self) -> ExprNode:
         """Parse and expression."""
         node = self.bit_or_expr()
-        while self.peek().type == "KW" and self.peek().value == "and":
-            self.match("KW", "and")
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "KW"
+            and tokens[self.i].value == "and"
+        ):
+            self.i += 1
             node = BinOp(node, "and", self.bit_or_expr())
         return node
 
     def bit_or_expr(self) -> ExprNode:
         """Parse bitwise or expression."""
         node = self.bit_xor_expr()
-        while self.peek().type == "OP" and self.peek().value == "|":
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value == "|"
+        ):
             self.i += 1
             node = BinOp(node, "|", self.bit_xor_expr())
         return node
@@ -724,7 +757,12 @@ class Parser:
     def bit_xor_expr(self) -> ExprNode:
         """Parse bitwise xor expression."""
         node = self.bit_and_expr()
-        while self.peek().type == "OP" and self.peek().value == "^":
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value == "^"
+        ):
             self.i += 1
             node = BinOp(node, "^", self.bit_and_expr())
         return node
@@ -732,7 +770,12 @@ class Parser:
     def bit_and_expr(self) -> ExprNode:
         """Parse bitwise and expression."""
         node = self.cmp_expr()
-        while self.peek().type == "OP" and self.peek().value == "&":
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value == "&"
+        ):
             self.i += 1
             node = BinOp(node, "&", self.cmp_expr())
         return node
@@ -747,7 +790,8 @@ class Parser:
         node: ExprNode = left
         while True:
             t = self.peek()
-            if t.type == "OP" and t.value in {"==", "!=", ">", "<", ">=", "<="}:
+            # Use Rust helper for fast comparison operator checking
+            if t.type == "OP" and is_comparison_op(t.value):
                 op: str = t.value
                 self.i += 1
             elif t.type == "KW" and t.value == "is":
@@ -770,8 +814,13 @@ class Parser:
     def range_expr(self) -> ExprNode:
         """Parse range expression (.. or ..=)."""
         node = self.shift_expr()
-        if self.peek().type == "OP" and self.peek().value in {"..", "..="}:
-            inclusive = self.peek().value == "..="
+        tokens = self.tokens
+        if (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value in {"..", "..="}
+        ):
+            inclusive = tokens[self.i].value == "..="
             self.i += 1
             return Range(start=node, end=self.shift_expr(), inclusive=inclusive)
         return node
@@ -779,49 +828,73 @@ class Parser:
     def shift_expr(self) -> ExprNode:
         """Parse bit shift expression (<<, >>)."""
         node: ExprNode = self.add_expr()
-        while self.peek().type == "OP" and self.peek().value in {"<<", ">>"}:
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value in {"<<", ">>"}
+        ):
+            op = tokens[self.i].value
             self.i += 1
-            node = BinOp(node, self.tokens[self.i - 1].value, self.add_expr())
+            node = BinOp(node, op, self.add_expr())
         return node
 
     def add_expr(self) -> ExprNode:
         """Parse addition/subtraction expression."""
         node: ExprNode = self.power_expr()
-        while self.peek().type == "OP" and self.peek().value in {"+", "-"}:
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value in {"+", "-"}
+        ):
+            op = tokens[self.i].value
             self.i += 1
-            node = BinOp(node, self.tokens[self.i - 1].value, self.power_expr())
+            node = BinOp(node, op, self.power_expr())
         return node
 
     def mul_expr(self) -> ExprNode:
         """Parse multiplication/division/modulo expression."""
         node: ExprNode = self.unary_expr()
-        while self.peek().type == "OP" and self.peek().value in {"*", "/", "//", "%"}:
+        tokens = self.tokens
+        while (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value in {"*", "/", "//", "%"}
+        ):
+            op = tokens[self.i].value
             self.i += 1
-            node = BinOp(node, self.tokens[self.i - 1].value, self.unary_expr())
+            node = BinOp(node, op, self.unary_expr())
         return node
 
     def power_expr(self) -> ExprNode:
         """Parse power (exponentiation) expression with right-associativity."""
         node = self.mul_expr()
-        if self.peek().type == "OP" and self.peek().value == "**":
+        tokens = self.tokens
+        if (
+            self.i < self._len
+            and tokens[self.i].type == "OP"
+            and tokens[self.i].value == "**"
+        ):
             self.i += 1
             node = BinOp(node, "**", self.power_expr())
         return node
 
     def unary_expr(self) -> ExprNode:
         """Parse unary expression (-, ~, not, await)."""
-        tok = self.peek()
-        if tok.type == "OP" and tok.value == "-":
-            self.match("OP", "-")
-            return UnaryOp("-", self.unary_expr())
-        if tok.type == "OP" and tok.value == "~":
-            self.match("OP", "~")
-            return UnaryOp("~", self.unary_expr())
+        tokens = self.tokens
+        if self.i >= self._len:
+            return self.atom()
+        tok = tokens[self.i]
+        # Use Rust helper for fast unary operator checking
+        if tok.type == "OP" and is_unary_op(tok.value):
+            self.i += 1
+            return UnaryOp(tok.value, self.unary_expr())
         if tok.type == "KW" and tok.value == "not":
-            self.match("KW", "not")
+            self.i += 1
             return UnaryOp("not", self.unary_expr())
         if tok.type == "KW" and tok.value == "await":
-            self.match("KW", "await")
+            self.i += 1
             return Await(self.unary_expr())
         return self.atom()
 
@@ -1175,9 +1248,9 @@ class Parser:
         if self.accept("FLOAT"):
             # Handle regular floats, scientific notation, and imaginary numbers
             val = tok.value
-            # Optimized: direct character check is faster than in/endswith
+            # direct character check is faster than in/endswith
             last_char = val[-1]
-            if last_char == 'j' or last_char == 'J':
+            if last_char == "j" or last_char == "J":
                 return Complex(complex(val))
             return Float(float(val))
         if self.accept("STR"):

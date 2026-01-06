@@ -8,36 +8,6 @@ from .types import Token
 from ._rust_lexer import tokenize  # pylint: disable=no-name-in-module
 
 
-KEYWORDS = {
-    "fn",
-    "async",
-    "await",
-    "use",
-    "as",
-    "if",
-    "elif",
-    "else",
-    "match",
-    "while",
-    "return",
-    "yield",
-    "for",
-    "in",
-    "true",
-    "false",
-    "none",
-    "and",
-    "or",
-    "not",
-    "is",
-    "break",
-    "continue",
-    "class",
-    "try",
-    "except",
-}
-
-
 class Lexer:
     """Tokenizes Ekilang source code using Rust implementation."""
 

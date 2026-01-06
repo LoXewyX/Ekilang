@@ -3,14 +3,11 @@
 Provides REPL, file execution, and Python AST dump functionality.
 """
 
-from __future__ import annotations
-
 import argparse
 import sys
 import ast
 import traceback
 from typing import Any, Dict, Literal
-
 from .executor import execute
 from .lexer import Lexer
 from .parser import Parser

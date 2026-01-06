@@ -3,7 +3,6 @@
 Provides all Python builtins to Ekilang runtime environment.
 """
 
-from __future__ import annotations
 import builtins as _py_builtins
 
 # Export all Python builtins dynamically (without hardcoding).

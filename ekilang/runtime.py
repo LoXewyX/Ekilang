@@ -4,9 +4,9 @@ Compiles Ekilang AST to Python AST and executes it.
 """
 
 from __future__ import annotations
-
 import ast
 from typing import Dict, Any, List, Protocol, cast
+from . import _rust_lexer
 from .types import (
     ExprNode,
     Statement,
@@ -58,7 +58,6 @@ from .types import (
     Yield,
     NamedExpr,
     Try,
-    ExceptHandler,
 )
 
 
@@ -115,6 +114,8 @@ _SAFE_NAMES: Dict[str, str] = {
 class CodeGen:
     """Generates Python AST from Ekilang AST."""
 
+    __slots__ = ("lambda_counter", "lambda_defs")
+
     def __init__(self) -> None:
         self.lambda_counter = 0
         self.lambda_defs: list[ast.stmt] = []
@@ -149,28 +150,35 @@ class CodeGen:
         # Optimized: group constant types together for better branch prediction
         # Most common cases first: literals and simple values
         node_type = type(node)
-        
+
         # Fast path for constant literals (most common)
         if node_type is Int:
-            return ast.Constant(node.value)
+            int_node = cast(Int, node)
+            return ast.Constant(int_node.value)
         if node_type is Float:
-            return ast.Constant(node.value)
+            float_node = cast(Float, node)
+            return ast.Constant(float_node.value)
         if node_type is Complex:
-            return ast.Constant(node.value)
+            complex_node = cast(Complex, node)
+            return ast.Constant(complex_node.value)
         if node_type is Str:
-            return ast.Constant(node.value)
+            str_node = cast(Str, node)
+            return ast.Constant(str_node.value)
         if node_type is Bool:
-            return ast.Constant(value=node.value)
+            bool_node = cast(Bool, node)
+            return ast.Constant(value=bool_node.value)
         if node_type is NoneLit:
             return ast.Constant(None)
         if node_type is BStr:
             # Convert byte string to bytes
-            return ast.Constant(node.value.encode('utf-8'))
-        
+            bstr_node = cast(BStr, node)
+            return ast.Constant(bstr_node.value.encode("utf-8"))
+
         # Fast path for Name lookups (very common)
         if node_type is Name:
-            return ast.Name(id=self._safe_name(node.id), ctx=ast.Load())
-        
+            name_node = cast(Name, node)
+            return ast.Name(id=self._safe_name(name_node.id), ctx=ast.Load())
+
         # Collection literals
         if isinstance(node, ListLit):
             return ast.List(
@@ -231,32 +239,27 @@ class CodeGen:
             return ast.Name(id=fn_name, ctx=ast.Load())
         if isinstance(node, UnaryOp):
             # Optimized: dictionary dispatch is faster than if-elif chains
-            op_map = {"-": ast.USub(), "~": ast.Invert(), "not": ast.Not()}
-            ast_op = op_map.get(node.op)
+            op_map: Dict[str, ast.unaryop] = {
+                "-": ast.USub(),
+                "~": ast.Invert(),
+                "not": ast.Not(),
+            }
+            ast_op: ast.unaryop | None = op_map.get(node.op)
             if ast_op is None:
                 raise TypeError(f"Unsupported unary op {node.op}")
             return ast.UnaryOp(op=ast_op, operand=self.expr(node.operand))
         if isinstance(node, Name):
             return ast.Name(id=self._safe_name(node.id), ctx=ast.Load())
         if isinstance(node, BinOp):
-            if node.op in {
-                ">",
-                "<",
-                ">=",
-                "<=",
-                "==",
-                "!=",
-                "is",
-                "is not",
-                "in",
-                "not in",
-            }:
+            op = node.op
+            # Use Rust helper for fast comparison operator checking, plus handle "is not" and "not in"
+            if _rust_lexer.is_comparison_op(op) or op in ("is not", "not in"):
                 return ast.Compare(
                     left=self.expr(node.left),
-                    ops=[cast(ast.cmpop, OP_MAP[node.op])],
+                    ops=[cast(ast.cmpop, OP_MAP[op])],
                     comparators=[self.expr(node.right)],
                 )
-            if node.op == "and":
+            if op == "and":
                 return ast.BoolOp(
                     op=ast.And(),
                     values=[
@@ -264,7 +267,7 @@ class CodeGen:
                         self.expr(node.right),
                     ],
                 )
-            if node.op == "or":
+            if op == "or":
                 return ast.BoolOp(
                     op=ast.Or(),
                     values=[
@@ -274,7 +277,7 @@ class CodeGen:
                 )
             return ast.BinOp(
                 left=self.expr(node.left),
-                op=cast(ast.operator, OP_MAP[node.op]),
+                op=cast(ast.operator, OP_MAP[op]),
                 right=self.expr(node.right),
             )
         if isinstance(node, Call):
