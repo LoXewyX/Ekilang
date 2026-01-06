@@ -37,7 +37,9 @@ from .types import (
     Name,
     Int,
     Float,
+    Complex,
     Str,
+    BStr,
     Bool,
     NoneLit,
     ListLit,
@@ -54,6 +56,9 @@ from .types import (
     Cast,
     Pipe,
     Yield,
+    NamedExpr,
+    Try,
+    ExceptHandler,
 )
 
 
@@ -141,17 +146,32 @@ class CodeGen:
         node: ExprNode,
     ) -> ast.expr:
         """Convert Ekilang expression node to Python AST expression."""
-        if isinstance(node, Int):
+        # Optimized: group constant types together for better branch prediction
+        # Most common cases first: literals and simple values
+        node_type = type(node)
+        
+        # Fast path for constant literals (most common)
+        if node_type is Int:
             return ast.Constant(node.value)
-        if isinstance(node, Float):
+        if node_type is Float:
             return ast.Constant(node.value)
-        if isinstance(node, Str):
+        if node_type is Complex:
             return ast.Constant(node.value)
-        if isinstance(node, Bool):
-            # Convert Bool node to Python's True or False
+        if node_type is Str:
+            return ast.Constant(node.value)
+        if node_type is Bool:
             return ast.Constant(value=node.value)
-        if isinstance(node, NoneLit):
+        if node_type is NoneLit:
             return ast.Constant(None)
+        if node_type is BStr:
+            # Convert byte string to bytes
+            return ast.Constant(node.value.encode('utf-8'))
+        
+        # Fast path for Name lookups (very common)
+        if node_type is Name:
+            return ast.Name(id=self._safe_name(node.id), ctx=ast.Load())
+        
+        # Collection literals
         if isinstance(node, ListLit):
             return ast.List(
                 elts=[self.expr(e) for e in node.elements],
@@ -210,11 +230,12 @@ class CodeGen:
             self.lambda_defs.append(fn_def)
             return ast.Name(id=fn_name, ctx=ast.Load())
         if isinstance(node, UnaryOp):
-            if node.op == "-":
-                return ast.UnaryOp(op=ast.USub(), operand=self.expr(node.operand))
-            if node.op == "not":
-                return ast.UnaryOp(op=ast.Not(), operand=self.expr(node.operand))
-            raise TypeError(f"Unsupported unary op {node.op}")
+            # Optimized: dictionary dispatch is faster than if-elif chains
+            op_map = {"-": ast.USub(), "~": ast.Invert(), "not": ast.Not()}
+            ast_op = op_map.get(node.op)
+            if ast_op is None:
+                raise TypeError(f"Unsupported unary op {node.op}")
+            return ast.UnaryOp(op=ast_op, operand=self.expr(node.operand))
         if isinstance(node, Name):
             return ast.Name(id=self._safe_name(node.id), ctx=ast.Load())
         if isinstance(node, BinOp):
@@ -558,6 +579,13 @@ class CodeGen:
             )
         if isinstance(node, SetLit):
             return ast.Set(elts=[self.expr(e) for e in node.elements])
+        if isinstance(node, NamedExpr):
+            # Walrus operator: name := value
+            # Python 3.8+ supports ast.NamedExpr
+            return ast.NamedExpr(
+                target=ast.Name(id=self._safe_name(node.target), ctx=ast.Store()),
+                value=self.expr(node.value),
+            )
         raise TypeError(f"Unsupported expr node: {type(node)}")
 
     def _convert_if_to_return(self, if_stmt: ast.If) -> None:
@@ -844,6 +872,22 @@ class CodeGen:
                 returns=ast.Constant(node.return_type) if node.return_type else None,
             )
             return fn_def
+        if isinstance(node, Try):
+            # Convert Try statement to ast.Try
+            handlers = [
+                ast.ExceptHandler(
+                    type=ast.Name(id=h.type, ctx=ast.Load()) if h.type else None,
+                    name=h.name,
+                    body=self._stmts(h.body) or [ast.Pass()],
+                )
+                for h in node.handlers
+            ]
+            return ast.Try(
+                body=self._stmts(node.body) or [ast.Pass()],
+                handlers=handlers,
+                orelse=self._stmts(node.orelse or []),
+                finalbody=self._stmts(node.finalbody or []),
+            )
         # Handle Use statements (imports)
         aliases = [ast.alias(name=item.name, asname=item.alias) for item in node.items]
         mod_elems = node.module

@@ -210,8 +210,22 @@ class Float:
 
 
 @dataclass
+class Complex:
+    """Complex/imaginary number literal."""
+
+    value: complex
+
+
+@dataclass
 class Str:
     """String literal."""
+
+    value: str
+
+
+@dataclass
+class BStr:
+    """Byte string literal."""
 
     value: str
 
@@ -417,6 +431,33 @@ class Await:
     value: ExprNode
 
 
+@dataclass
+class NamedExpr:
+    """Named expression with assignment operator (:=) - walrus operator."""
+
+    target: str  # Variable name
+    value: ExprNode
+
+
+@dataclass
+class ExceptHandler:
+    """Exception handler for try-except blocks."""
+
+    type: Optional[str]  # Exception type name (None for bare except)
+    name: Optional[str]  # Variable name for 'as' clause (None if not present)
+    body: List[Statement]
+
+
+@dataclass
+class Try:
+    """Try-except-finally statement."""
+
+    body: List[Statement]  # try block body
+    handlers: List[ExceptHandler]  # except handlers
+    orelse: Optional[List[Statement]] = None  # else block (optional)
+    finalbody: Optional[List[Statement]] = None  # finally block (optional)
+
+
 Statement = (
     Class
     | Use
@@ -434,6 +475,7 @@ Statement = (
     | AugAssign
     | Let
     | ExprStmt
+    | Try
 )
 
 Body = List[List[Statement]]
@@ -446,7 +488,9 @@ ExprNode = (
     | Name
     | Int
     | Float
+    | Complex
     | Str
+    | BStr
     | Bool
     | NoneLit
     | ListLit
@@ -465,4 +509,5 @@ ExprNode = (
     | SetLit
     | Cast
     | Await
+    | NamedExpr
 )

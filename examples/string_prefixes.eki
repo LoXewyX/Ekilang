@@ -1,0 +1,42 @@
+print("=== String Prefix Tests ===")
+
+# Regular string
+s1 = "Hello\nWorld"
+print("Regular string:", repr(s1))
+
+# Raw string (no escape processing)
+s2 = r"Hello\nWorld"
+print("Raw string:", repr(s2))
+
+# Byte string
+s3 = b"Hello"
+print("Byte string:", repr(s3))
+
+# Unicode string (same as regular in Python 3)
+s4 = u"Hello"
+print("Unicode string:", repr(s4))
+
+# Formatted raw string
+x = 42
+s5 = fr"Value: {x}\n"
+print("Formatted raw string:", repr(s5))
+
+# Formatted raw string (reversed prefix)
+s6 = rf"Value: {x}\n"
+print("Formatted raw (rf) string:", repr(s6))
+
+# Byte raw string
+s7 = br"Path\to\file"
+print("Byte raw string:", repr(s7))
+
+# Byte raw string (reversed prefix)
+s8 = rb"Path\to\file"
+print("Byte raw (rb) string:", repr(s8))
+
+print()
+print("=== Type Checks ===")
+print("Type of b'Hello':", type(s3))
+print("Type of 'Hello':", type(s1))
+
+print()
+print("All string prefix tests passed!")

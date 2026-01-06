@@ -33,6 +33,8 @@ KEYWORDS = {
     "break",
     "continue",
     "class",
+    "try",
+    "except",
 }
 
 

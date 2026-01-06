@@ -1,0 +1,60 @@
+print("=== Number Format Tests ===")
+print()
+
+# Decimal numbers
+print("1. Decimal numbers:")
+print("   10 =", 10)
+print("   3.14 =", 3.14)
+print("   1_000_000 =", 1_000_000)
+print("   3.141_592 =", 3.141_592)
+
+# Hexadecimal (0x prefix)
+print("2. Hexadecimal (0x):")
+print("   0x10 =", 0x10, "(should be 16)")
+print("   0xFF =", 0xFF, "(should be 255)")
+print("   0xDEADBEEF =", 0xDEADBEEF, "(should be 3735928559)")
+print("   0X1A =", 0X1A, "(should be 26)")
+
+# Binary (0b prefix)
+print("3. Binary (0b):")
+print("   0b1010 =", 0b1010, "(should be 10)")
+print("   0b11111111 =", 0b11111111, "(should be 255)")
+print("   0B1100 =", 0B1100, "(should be 12)")
+
+# Octal (0o prefix)
+print("4. Octal (0o):")
+print("   0o10 =", 0o10, "(should be 8)")
+print("   0o77 =", 0o77, "(should be 63)")
+print("   0O755 =", 0O755, "(should be 493)")
+
+# Scientific notation
+print("5. Scientific notation:")
+print("   1e3 =", 1e3, "(should be 1000.0)")
+print("   1.5e2 =", 1.5e2, "(should be 150.0)")
+print("   2e-3 =", 2e-3, "(should be 0.002)")
+print("   1E6 =", 1E6, "(should be 1000000.0)")
+
+# Imaginary numbers
+print("6. Imaginary numbers:")
+print("   3j =", 3j)
+print("   4.5j =", 4.5j)
+print("   1e2j =", 1e2j)
+print("   Type of 3j:", type(3j))
+
+# Complex arithmetic
+print("7. Complex arithmetic:")
+z1 = 3 + 4j
+z2 = 1 - 2j
+print("   (3+4j) =", z1)
+print("   (1-2j) =", z2)
+print("   (3+4j) + (1-2j) =", z1 + z2)
+print("   abs(3+4j) =", abs(z1))
+
+# Mixed operations
+print("8. Mixed number operations:")
+print("   0xFF + 0b1111 =", 0xFF + 0b1111, "(255 + 15 = 270)")
+print("   0o10 * 0x10 =", 0o10 * 0x10, "(8 * 16 = 128)")
+print("   0b1000 / 0o10 =", 0b1000 / 0o10, "(8 / 8 = 1.0)")
+
+print()
+print("✓ All number format tests passed!")

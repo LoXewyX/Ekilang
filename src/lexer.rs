@@ -89,16 +89,100 @@ impl Lexer {
         let mut num_str = String::new();
         let mut is_float = false;
 
+        // Check for hex, binary, or octal prefix
+        if self.current() == Some('0') {
+            num_str.push('0');
+            self.advance();
+            
+            if let Some(prefix) = self.current() {
+                match prefix {
+                    'x' | 'X' => {
+                        // Hexadecimal
+                        num_str.push(prefix);
+                        self.advance();
+                        while let Some(ch) = self.current() {
+                            if ch.is_ascii_hexdigit() || ch == '_' {
+                                if ch != '_' {
+                                    num_str.push(ch);
+                                }
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        return Ok(Token::new(TokenType::Int, num_str, start_line, start_col));
+                    }
+                    'b' | 'B' => {
+                        // Binary
+                        num_str.push(prefix);
+                        self.advance();
+                        while let Some(ch) = self.current() {
+                            if ch == '0' || ch == '1' || ch == '_' {
+                                if ch != '_' {
+                                    num_str.push(ch);
+                                }
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        return Ok(Token::new(TokenType::Int, num_str, start_line, start_col));
+                    }
+                    'o' | 'O' => {
+                        // Octal
+                        num_str.push(prefix);
+                        self.advance();
+                        while let Some(ch) = self.current() {
+                            if ('0'..='7').contains(&ch) || ch == '_' {
+                                if ch != '_' {
+                                    num_str.push(ch);
+                                }
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        return Ok(Token::new(TokenType::Int, num_str, start_line, start_col));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Regular decimal number
         while let Some(ch) = self.current() {
-            if ch.is_numeric() {
-                num_str.push(ch);
+            if ch.is_numeric() || ch == '_' {
+                if ch != '_' {
+                    num_str.push(ch);
+                }
                 self.advance();
             } else if ch == '.' && !is_float && self.peek(1).map_or(false, |c| c.is_numeric()) {
                 is_float = true;
                 num_str.push(ch);
                 self.advance();
+            } else if (ch == 'e' || ch == 'E') && !num_str.is_empty() {
+                // Scientific notation
+                is_float = true;
+                num_str.push(ch);
+                self.advance();
+                if let Some(sign) = self.current() {
+                    if sign == '+' || sign == '-' {
+                        num_str.push(sign);
+                        self.advance();
+                    }
+                }
             } else {
                 break;
+            }
+        }
+
+        // Check for imaginary number suffix (j or J)
+        if let Some(ch) = self.current() {
+            if ch == 'j' || ch == 'J' {
+                num_str.push(ch);
+                self.advance();
+                // Imaginary numbers are always treated as float-like
+                return Ok(Token::new(TokenType::Float, num_str, start_line, start_col));
             }
         }
 
@@ -111,7 +195,7 @@ impl Lexer {
         Ok(Token::new(token_type, num_str, start_line, start_col))
     }
 
-    fn read_string(&mut self, quote: char, is_fstring: bool, is_tstring: bool) -> Result<Token, LexError> {
+    fn read_string(&mut self, quote: char, is_fstring: bool, is_tstring: bool, is_raw: bool, is_bytes: bool) -> Result<Token, LexError> {
         let start_line = self.line;
         let start_col = self.col;
 
@@ -145,8 +229,8 @@ impl Lexer {
                 break;
             }
 
-            if ch == '\\' && self.peek(1).is_some() {
-                // Handle escape sequences
+            if ch == '\\' && self.peek(1).is_some() && !is_raw {
+                // Handle escape sequences (not in raw strings)
                 self.advance();
                 if let Some(escaped) = self.current() {
                     match escaped {
@@ -170,7 +254,9 @@ impl Lexer {
         }
 
         if !found_end {
-            let kind = if is_fstring {
+            let kind = if is_bytes {
+                "byte-string".to_string()
+            } else if is_fstring {
                 "f-string".to_string()
             } else if is_tstring {
                 "t-string".to_string()
@@ -184,7 +270,9 @@ impl Lexer {
             });
         }
 
-        let token_type = if is_fstring {
+        let token_type = if is_bytes {
+            TokenType::BStr
+        } else if is_fstring {
             TokenType::FStr
         } else if is_tstring {
             TokenType::TStr
@@ -225,7 +313,7 @@ impl Lexer {
             if matches!(
                 two.as_str(),
                 "=>" | "==" | "!=" | ">=" | "<=" | "+=" | "-=" | "*=" | "/=" | "%=" | "//" | ".." |
-                "<<" | ">>" | "&=" | "|=" | "^=" | "::" | "->" | "|>" | "<|" | "**"
+                "<<" | ">>" | "&=" | "|=" | "^=" | "::" | "->" | "|>" | "<|" | "**" | ":="
             ) {
                 op = two;
                 self.advance();
@@ -236,7 +324,7 @@ impl Lexer {
 
         // Single character operators
         if let Some(ch) = self.current() {
-            if "+-*/%=<>:|&^.@".contains(ch) {
+            if "+-*/%=<>:|&^.@~".contains(ch) {
                 op.push(ch);
                 self.advance();
                 return Token::new_with_type("OP", op, start_line, start_col);
@@ -285,29 +373,37 @@ impl Lexer {
                     let start_col = self.col;
                     let ident = self.read_identifier();
 
-                    // Check for f/t string prefix
-                    if (ident == "f" || ident == "t") && matches!(self.current(), Some('"') | Some('\'')) {
-                        let is_fstring = ident == "f";
-                        let is_tstring = ident == "t";
-                        let quote = self.current().unwrap();
-                        let token = self.read_string(quote, is_fstring, is_tstring)?;
-                        tokens.push(token);
-                    } else {
-                        // Regular identifier or keyword
-                        let token_type = if is_keyword(&ident) {
-                            "KW"
-                        } else {
-                            "ID"
-                        };
-                        tokens.push(Token::new_with_type(token_type, ident, start_line, start_col));
+                    // Check for string prefixes first (most likely path)
+                    if let Some(quote @ ('"' | '\'')) = self.current() {
+                        let lower_ident = ident.to_ascii_lowercase();
+                        
+                        // Single match handles both validation and flag extraction
+                        if let Some((is_fstring, is_tstring, is_raw, is_bytes)) = match lower_ident.as_str() {
+                            "f" => Some((true, false, false, false)),
+                            "t" => Some((false, true, false, false)),
+                            "r" => Some((false, false, true, false)),
+                            "b" => Some((false, false, false, true)),
+                            "u" => Some((false, false, false, false)),
+                            "fr" | "rf" => Some((true, false, true, false)),
+                            "br" | "rb" => Some((false, false, true, true)),
+                            _ => None,
+                        } {
+                            let token = self.read_string(quote, is_fstring, is_tstring, is_raw, is_bytes)?;
+                            tokens.push(token);
+                            continue;
+                        }
                     }
+
+                    // Regular identifier or keyword
+                    let token_type = if is_keyword(&ident) { "KW" } else { "ID" };
+                    tokens.push(Token::new_with_type(token_type, ident, start_line, start_col));
                 }
                 Some(ch) if ch.is_numeric() => {
                     tokens.push(self.read_number()?);
                 }
                 Some('"') | Some('\'') => {
                     let quote = self.current().unwrap();
-                    tokens.push(self.read_string(quote, false, false)?);
+                    tokens.push(self.read_string(quote, false, false, false, false)?);
                 }
                 Some('(') => {
                     tokens.push(Token::new(TokenType::LParen, "(".to_string(), self.line, self.col));
@@ -334,9 +430,13 @@ impl Lexer {
                     self.advance();
                 }
                 Some(':') => {
-                    // Check for :: operator
+                    // Check for :: or := operators
                     if self.peek(1) == Some(':') {
                         tokens.push(Token::new_with_type("OP", "::".to_string(), self.line, self.col));
+                        self.advance();
+                        self.advance();
+                    } else if self.peek(1) == Some('=') {
+                        tokens.push(Token::new_with_type("OP", ":=".to_string(), self.line, self.col));
                         self.advance();
                         self.advance();
                     } else {
@@ -374,7 +474,7 @@ impl Lexer {
                         self.advance();
                     }
                 }
-                Some(ch) if "+-*/%=<>:|&^.@!".contains(ch) => {
+                Some(ch) if "+-*/%=<>:|&^.@!~".contains(ch) => {
                     tokens.push(self.read_operator());
                 }
                 Some(ch) => {

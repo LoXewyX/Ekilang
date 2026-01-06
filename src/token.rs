@@ -9,6 +9,7 @@ pub enum TokenType {
     Str,
     FStr,
     TStr,
+    BStr,
     
     // Identifiers and keywords
     Id,
@@ -45,6 +46,7 @@ impl TokenType {
             TokenType::Str => "STR",
             TokenType::FStr => "FSTR",
             TokenType::TStr => "TSTR",
+            TokenType::BStr => "BSTR",
             TokenType::Id => "ID",
             TokenType::Kw => "KW",
             TokenType::Op => "OP",
@@ -151,7 +153,7 @@ impl Token {
 pub static KEYWORDS: &[&str] = &[
     "fn", "async", "await", "use", "as", "if", "elif", "else", "match", "while",
     "return", "yield", "for", "in", "true", "false", "none", "and", "or", "not",
-    "is", "break", "continue", "class",
+    "is", "break", "continue", "class", "try", "except", "finally",
 ];
 
 pub fn is_keyword(s: &str) -> bool {

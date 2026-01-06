@@ -39,7 +39,9 @@ from .types import (
     Await,
     Int,
     Float,
+    Complex,
     Str,
+    BStr,
     Bool,
     NoneLit,
     ListLit,
@@ -57,6 +59,9 @@ from .types import (
     ListComp,
     DictComp,
     SetComp,
+    NamedExpr,
+    Try,
+    ExceptHandler,
 )
 
 from .lexer import Token, Lexer
@@ -84,10 +89,13 @@ class Parser:
     def __init__(self, tokens: List[Token]) -> None:
         self.tokens: List[Token] = tokens
         self.i: int = 0
+        self._len: int = len(tokens)  # Cache for faster bounds checking
 
     def peek(self) -> Token:
         """Look at current token without consuming it."""
-        return self.tokens[self.i]
+        # Optimized: faster than min() for bounds checking
+        idx = self.i if self.i < self._len else self._len - 1
+        return self.tokens[idx]
 
     def match(self, type_: str, value: Optional[str] = None) -> Token:
         """Consume and return token if it matches, otherwise raise SyntaxError."""
@@ -141,6 +149,8 @@ class Parser:
                 return self.match_stmt()
             if tok.value == "while":
                 return self.while_stmt()
+            if tok.value == "try":
+                return self.try_stmt()
 
         # Handle ID-based statements (assignments, aug-assigns, unpacking)
         if tok.type == "ID":
@@ -178,21 +188,20 @@ class Parser:
     def _parse_simple_stmt(self, keyword: str) -> Break | Continue | Yield | Return:
         """Parse break, continue, yield, or return statements."""
         self.match("KW", keyword)
-        if keyword == "break":
+        
+        # Fast path for break/continue (no expression)
+        if keyword in ("break", "continue"):
             self.accept("NL")
-            return Break()
-        if keyword == "continue":
-            self.accept("NL")
-            return Continue()
+            return Break() if keyword == "break" else Continue()
+        
         # yield and return have optional expressions
         if self.peek().type in ("NL", "EOF", "}"):
             val = None
         else:
             val = self.expr()
         self.accept("NL")
-        if keyword == "yield":
-            return Yield(val)
-        return Return(val)
+        
+        return Yield(val) if keyword == "yield" else Return(val)
 
     def _parse_id_stmt(self) -> Let | Assign | AugAssign | None:
         """Parse ID-based statements: assignments, aug-assigns, or unpacking.
@@ -447,6 +456,71 @@ class Parser:
         self.accept("NL")
         return While(test, body)
 
+    def try_stmt(self) -> Try:
+        """Parse a try-except-finally statement."""
+        self.match("KW", "try")
+        self.match("{")
+        body: List[Statement] = []
+        while not self.accept("}"):
+            if self.accept("NL"):
+                continue
+            body.append(self.statement())
+        self.accept("NL")
+        
+        handlers: List[ExceptHandler] = []
+        orelse: Optional[List[Statement]] = None
+        finalbody: Optional[List[Statement]] = None
+        
+        # Parse except handlers
+        while self.peek().type == "KW" and self.peek().value == "except":
+            self.match("KW", "except")
+            
+            # Parse exception type (optional)
+            exc_type: Optional[str] = None
+            exc_name: Optional[str] = None
+            
+            if self.peek().type == "ID":
+                exc_type = self.match("ID").value
+                
+                # Check for 'as' clause
+                if self.peek().type == "KW" and self.peek().value == "as":
+                    self.match("KW", "as")
+                    exc_name = self.match("ID").value
+            
+            self.match("{")
+            handler_body: List[Statement] = []
+            while not self.accept("}"):
+                if self.accept("NL"):
+                    continue
+                handler_body.append(self.statement())
+            self.accept("NL")
+            
+            handlers.append(ExceptHandler(type=exc_type, name=exc_name, body=handler_body))
+        
+        # Parse optional else block
+        if self.peek().type == "KW" and self.peek().value == "else":
+            self.match("KW", "else")
+            self.match("{")
+            orelse = []
+            while not self.accept("}"):
+                if self.accept("NL"):
+                    continue
+                orelse.append(self.statement())
+            self.accept("NL")
+        
+        # Parse optional finally block
+        if self.peek().type == "KW" and self.peek().value == "finally":
+            self.match("KW", "finally")
+            self.match("{")
+            finalbody = []
+            while not self.accept("}"):
+                if self.accept("NL"):
+                    continue
+                finalbody.append(self.statement())
+            self.accept("NL")
+        
+        return Try(body=body, handlers=handlers, orelse=orelse, finalbody=finalbody)
+
     def for_stmt(self) -> For:
         """Parse a for loop with unpacking target(s), iterable expression, and body."""
         self.match("KW", "for")
@@ -551,7 +625,26 @@ class Parser:
 
     def expr(self) -> ExprNode:
         """Parse a full expression at the highest precedence level."""
-        return self.pipe_expr()
+        return self.named_expr()
+
+    def named_expr(self) -> ExprNode:
+        """Parse named expression with walrus operator (:=).
+        
+        This handles the lowest precedence operators that can appear in expressions
+        (like the walrus operator), after pipes.
+        """
+        node = self.pipe_expr()
+        
+        # Check for walrus operator (:=)
+        # Named expressions can appear in parentheses, function arguments, etc.
+        if self.peek().type == "OP" and self.peek().value == ":=":
+            # Ensure left side is a Name
+            if isinstance(node, Name):
+                self.match("OP", ":=")
+                value = self.cast_expr()  # Don't recurse - parse the right side without walrus
+                return NamedExpr(target=node.id, value=value)
+        
+        return node
 
     def pipe_expr(self) -> ExprNode:
         """Parse pipe expressions with `|>` and `<|` associativity rules."""
@@ -716,11 +809,14 @@ class Parser:
         return node
 
     def unary_expr(self) -> ExprNode:
-        """Parse unary expression (-, not, await)."""
+        """Parse unary expression (-, ~, not, await)."""
         tok = self.peek()
         if tok.type == "OP" and tok.value == "-":
             self.match("OP", "-")
             return UnaryOp("-", self.unary_expr())
+        if tok.type == "OP" and tok.value == "~":
+            self.match("OP", "~")
+            return UnaryOp("~", self.unary_expr())
         if tok.type == "KW" and tok.value == "not":
             self.match("KW", "not")
             return UnaryOp("not", self.unary_expr())
@@ -1074,11 +1170,20 @@ class Parser:
         """Parse atomic expression (literals, names, etc)."""
         tok: Token = self.peek()
         if self.accept("INT"):
-            return Int(int(tok.value))
+            # Handle hex (0x), binary (0b), octal (0o) formats
+            return Int(int(tok.value, 0))
         if self.accept("FLOAT"):
-            return Float(float(tok.value))
+            # Handle regular floats, scientific notation, and imaginary numbers
+            val = tok.value
+            # Optimized: direct character check is faster than in/endswith
+            last_char = val[-1]
+            if last_char == 'j' or last_char == 'J':
+                return Complex(complex(val))
+            return Float(float(val))
         if self.accept("STR"):
             return Str(tok.value)
+        if self.accept("BSTR"):
+            return BStr(tok.value)
         if self.accept("FSTR"):
             string_parts, exprs, formats, debug_exprs = self._parse_interpolated_string(
                 tok.value, tok, "f"

@@ -1,0 +1,51 @@
+print("=== Bitwise NOT (~) and Scientific Notation Demo ===")
+print()
+
+# Bitwise NOT operator
+print("1. Bitwise NOT operator (~):")
+val = 10
+inverted = ~val
+print(f"   {val} -> ~{val} = {inverted}")
+print(f"   0xFF -> ~0xFF = {~0xFF}")
+print(f"   0b1010 -> ~0b1010 = {~0b1010}")
+
+# Scientific notation
+print()
+print("2. Scientific notation:")
+large = 1.5e6
+small = 2.5e-4
+print(f"   1.5e6 = {large:,.0f}")
+print(f"   2.5e-4 = {small}")
+print(f"   1e3 + 2e3 = {1e3 + 2e3:,.0f}")
+
+# Combined with other features
+print()
+print("3. Bitwise NOT with hex and binary:")
+mask = 0xFF
+print(f"   Mask: {mask} (0xFF)")
+print(f"   Inverted: {~mask}")
+print(f"   Binary 0b1111: {0b1111}, inverted: {~0b1111}")
+
+# Scientific notation in calculations
+print()
+print("4. Scientific notation in calculations:")
+avogadro = 6.022e23
+planck = 6.626e-34
+print(f"   Avogadro's number: {avogadro:.3e}")
+print(f"   Planck constant: {planck:.3e}")
+print(f"   Product: {avogadro * planck:.3e}")
+
+# Using with walrus operator
+print()
+print("5. Combined with walrus operator:")
+if (bits := 0b11110000) {
+    print(f"   bits = {bits} (binary: 0b11110000)")
+    print(f"   ~bits = {~bits}")
+}
+
+if (sci := 1.5e6) > 1000000 {
+    print(f"   sci = {sci:,.0f} (1.5e6)")
+}
+
+print()
+print("✓ All demonstrations complete!")
