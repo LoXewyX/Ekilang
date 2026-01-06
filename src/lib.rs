@@ -2,7 +2,7 @@ mod token;
 mod lexer;
 mod error;
 mod builtins;
-mod parser_helpers;
+mod parser;
 
 use lexer::Lexer;
 use pyo3::{Bound, PyErr, PyResult, Python, pyfunction, pymodule, types::PyModule, wrap_pyfunction};
@@ -36,21 +36,21 @@ fn rust_lexer(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(builtins::apply_compare, m)?)?;
     
     // Register parser helper functions
-    m.add_function(wrap_pyfunction!(parser_helpers::get_operator_precedence, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_aug_assign_op, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_comparison_op, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_binary_op, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_unary_op, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_statement_keyword, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_right_associative, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_valid_token_type, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::canonicalize_operator, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::validate_interpolation_braces, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_valid_id_start, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::is_valid_id_continue, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::validate_operators, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::classify_operator, m)?)?;
-    m.add_function(wrap_pyfunction!(parser_helpers::classify_keyword, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::get_operator_precedence, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_aug_assign_op, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_comparison_op, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_binary_op, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_unary_op, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_statement_keyword, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_right_associative, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_valid_token_type, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::canonicalize_operator, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::validate_interpolation_braces, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_valid_id_start, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::is_valid_id_continue, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::validate_operators, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::classify_operator, m)?)?;
+    m.add_function(wrap_pyfunction!(parser::classify_keyword, m)?)?;
     
     Ok(())
 }
