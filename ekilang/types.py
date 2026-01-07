@@ -93,6 +93,7 @@ class While:
 
     test: ExprNode
     body: List[Statement]
+    orelse: List[Statement]
 
 
 @dataclass
@@ -101,6 +102,41 @@ class For:
 
     target: List[Name]
     iter: ExprNode
+    body: List[Statement]
+    orelse: List[Statement]
+
+
+@dataclass
+class AsyncFor:
+    """Async for loop with target, async iterator, and body."""
+
+    target: List[Name]
+    iter: ExprNode
+    body: List[Statement]
+    orelse: List[Statement]
+
+
+@dataclass
+class WithItem:
+    """Single context manager in a with statement."""
+
+    context_expr: ExprNode
+    optional_vars: Optional[str] = None
+
+
+@dataclass
+class With:
+    """With statement (context manager) with items and body."""
+
+    items: List[WithItem]
+    body: List[Statement]
+
+
+@dataclass
+class AsyncWith:
+    """Async with statement with context managers and body."""
+
+    items: List[WithItem]
     body: List[Statement]
 
 
@@ -462,6 +498,9 @@ Statement = (
     Class
     | Use
     | For
+    | With
+    | AsyncWith
+    | AsyncFor
     | Break
     | Continue
     | Yield

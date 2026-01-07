@@ -1,0 +1,86 @@
+# Demonstration of with statement (context managers) in Ekilang
+
+print("=== Basic File Operations ===")
+
+# Simple file reading with context manager
+with open("examples/variables.eki", "r") as f {
+    content = f.read()
+    lines = content.split("\n")
+    print(f"Read {len(lines)} lines from variables.eki")
+    print(f"First line: {lines[0]}")
+}
+
+print("\n=== Multiple Context Managers ===")
+
+# Multiple files with one with statement
+with open("examples/variables.eki", "r") as input_file, open("temp_output.txt", "w") as output_file {
+    content = input_file.read()
+    output_file.write(f"Content length: {len(content)}\n")
+    output_file.write(content[:100])
+    print("Copied first 100 characters to temp_output.txt")
+}
+
+# Clean up the temp file
+use os
+os.remove("temp_output.txt")
+print("Cleaned up temp_output.txt")
+
+print("\n=== Nested With Statements ===")
+
+# Nested with statements
+count = 0
+with open("examples/conditionals.eki", "r") as f1 {
+    for line in f1.readlines() {
+        count += 1
+    }
+}
+print(f"Conditionals.eki has {count} lines")
+
+print("\n=== With in Functions ===")
+
+fn read_first_line(filename) {
+    with open(filename, "r") as f {
+        return f.readline().strip()
+    }
+}
+
+first_line = read_first_line("examples/operators.eki")
+print(f"First line of operators.eki: {first_line}")
+
+print("\n=== Exception Handling with With ===")
+
+fn safe_read(filename) {
+    try {
+        with open(filename, "r") as f {
+            return f.read()
+        }
+    } except FileNotFoundError {
+        return "File not found"
+    } except Exception as e {
+        return f"Error: {e}"
+    }
+}
+
+result1 = safe_read("examples/variables.eki")
+print(f"Read real file: {result1[:50]}...")
+
+result2 = safe_read("nonexistent_file.txt")
+print(f"Read fake file: {result2}")
+
+print("\n=== Custom Context Manager (using builtins) ===")
+
+# Python's contextlib works in Ekilang too!
+use contextlib
+
+@contextlib.contextmanager
+fn custom_context() {
+    print("Entering context")
+    yield "context_value"
+    print("Exiting context")
+}
+
+with custom_context() as value {
+    print(f"Inside context with value: {value}")
+}
+
+print("\nWith statement implementation complete!")

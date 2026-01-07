@@ -17,6 +17,10 @@ from .types import (
     Case,
     While,
     For,
+    AsyncFor,
+    With,
+    AsyncWith,
+    WithItem,
     Use,
     UseItem,
     Break,
@@ -134,9 +138,20 @@ class Parser:
                     return self.use_stmt()
                 if tok.value == "for":
                     return self.for_stmt()
+                if tok.value == "with":
+                    return self.with_stmt()
                 if tok.value in {"break", "continue", "yield", "return"}:
                     return self._parse_simple_stmt(tok.value)
                 if tok.value == "async":
+                    next_tok = (
+                        self.tokens[self.i + 1] if self.i + 1 < self._len else None
+                    )
+                    if next_tok and next_tok.type == "KW" and next_tok.value == "with":
+                        self.match("KW", "async")
+                        return self.with_stmt(is_async=True)
+                    if next_tok and next_tok.type == "KW" and next_tok.value == "for":
+                        self.match("KW", "async")
+                        return self.async_for_stmt()
                     return self._parse_async_fn(decorators)
                 if tok.value == "fn":
                     return self.fn_def(decorators)
@@ -468,7 +483,13 @@ class Parser:
                 continue
             body.append(self.statement())
         self.accept("NL")
-        return While(test, body)
+
+        # Check for optional else clause
+        orelse: List[Statement] = []
+        if self.accept("KW", "else"):
+            orelse = self._parse_block_body()
+
+        return While(test, body, orelse)
 
     def try_stmt(self) -> Try:
         """Parse a try-except-finally statement."""
@@ -537,6 +558,59 @@ class Parser:
 
         return Try(body=body, handlers=handlers, orelse=orelse, finalbody=finalbody)
 
+    def with_stmt(self, is_async: bool = False) -> With | AsyncWith:
+        """Parse a with or async with statement with one or more context managers."""
+        self.match("KW", "with")
+
+        items: List[WithItem] = []
+
+        # Parse first context manager (stop at 'as', ',', or '{')
+        # We need to be careful not to parse too much
+        context_expr = (
+            self.ternary_expr()
+        )  # Parse up to ternary level to avoid consuming ','
+        optional_vars = None
+        if self.accept("KW", "as"):
+            optional_vars = self.match("ID").value
+        items.append(WithItem(context_expr, optional_vars))
+
+        # Parse additional context managers separated by commas
+        while self.accept(","):
+            context_expr = self.ternary_expr()  # Parse up to ternary level
+            optional_vars = None
+            if self.accept("KW", "as"):
+                optional_vars = self.match("ID").value
+            items.append(WithItem(context_expr, optional_vars))
+
+        # Parse body
+        body = self._parse_block_body()
+
+        if is_async:
+            return AsyncWith(items, body)
+        return With(items, body)
+
+    def async_for_stmt(self) -> AsyncFor:
+        """Parse an async for loop with optional else clause."""
+        self.match("KW", "for")
+        target = self.parse_unpack_target()
+        if target is None:
+            target = [self.match("ID").value]
+        self.match("KW", "in")
+        iterable = self.expr()
+        self.match("{")
+        body: List[Statement] = []
+        while not self.accept("}"):
+            if self.accept("NL"):
+                continue
+            body.append(self.statement())
+        self.accept("NL")
+
+        orelse: List[Statement] = []
+        if self.accept("KW", "else"):
+            orelse = self._parse_block_body()
+
+        return AsyncFor([Name(name) for name in target], iterable, body, orelse)
+
     def for_stmt(self) -> For:
         """Parse a for loop with unpacking target(s), iterable expression, and body."""
         self.match("KW", "for")
@@ -553,8 +627,14 @@ class Parser:
                 continue
             body.append(self.statement())
         self.accept("NL")
+
+        # Check for optional else clause
+        orelse: List[Statement] = []
+        if self.accept("KW", "else"):
+            orelse = self._parse_block_body()
+
         # If only one name, keep as Name node for compatibility; else, pass list
-        return For([Name(name) for name in target], iterable, body)
+        return For([Name(name) for name in target], iterable, body, orelse)
 
     def use_stmt(self) -> Use:
         """Parse a `use` import statement, with support for relative paths."""

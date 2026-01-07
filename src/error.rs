@@ -2,16 +2,8 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum LexError {
-    UnterminatedString {
-        line: u32,
-        col: u32,
-        kind: String,
-    },
-    InvalidCharacter {
-        line: u32,
-        col: u32,
-        ch: char,
-    },
+    UnterminatedString { line: u32, col: u32, kind: String },
+    InvalidCharacter { line: u32, col: u32, ch: char },
 }
 
 impl fmt::Display for LexError {

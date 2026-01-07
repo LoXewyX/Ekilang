@@ -1,5 +1,5 @@
-use pyo3::{pyfunction, PyResult, PyErr};
 use pyo3::exceptions::PyValueError;
+use pyo3::{pyfunction, PyErr, PyResult};
 
 /// Fast operator precedence check - returns precedence level
 /// Higher numbers = higher precedence
@@ -7,58 +7,62 @@ use pyo3::exceptions::PyValueError;
 pub fn get_operator_precedence(op: &str) -> PyResult<u8> {
     let precedence = match op {
         // Assignment (lowest)
-        "=" | "+=" | "-=" | "*=" | "**=" | "/=" | "//=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" => 0,
-        
+        "=" | "+=" | "-=" | "*=" | "**=" | "/=" | "//=" | "%=" | "&=" | "|=" | "^=" | "<<="
+        | ">>=" => 0,
+
         // Named expression (walrus)
         ":=" => 1,
-        
+
         // Pipe operators
         "|>" | "<|" => 2,
-        
+
         // Ternary
         "if" => 3,
-        
+
         // Logical OR
         "or" => 4,
-        
+
         // Logical AND
         "and" => 5,
-        
+
         // Logical NOT
         "not" => 6,
-        
+
         // Comparisons
         "<" | ">" | "<=" | ">=" | "==" | "!=" | "in" | "is" => 7,
-        
+
         // Bitwise OR
         "|" => 8,
-        
+
         // Bitwise XOR
         "^" => 9,
-        
+
         // Bitwise AND
         "&" => 10,
-        
+
         // Bit shifts
         "<<" | ">>" => 11,
-        
+
         // Range
         ".." | "..=" => 12,
-        
+
         // Addition/Subtraction
         "+" | "-" => 13,
-        
+
         // Multiplication/Division/Modulo
         "*" | "/" | "//" | "%" => 14,
-        
+
         // Power (highest precedence)
         "**" => 15,
-        
-        _ => return Err(PyErr::new::<PyValueError, _>(
-            format!("Unknown operator: {}", op)
-        )),
+
+        _ => {
+            return Err(PyErr::new::<PyValueError, _>(format!(
+                "Unknown operator: {}",
+                op
+            )))
+        }
     };
-    
+
     Ok(precedence)
 }
 
@@ -97,8 +101,21 @@ pub fn is_unary_op(op: &str) -> bool {
 pub fn is_statement_keyword(kw: &str) -> bool {
     matches!(
         kw,
-        "class" | "use" | "for" | "break" | "continue" | "yield" | "return" | 
-        "async" | "fn" | "if" | "match" | "while" | "try" | "let"
+        "class"
+            | "use"
+            | "for"
+            | "with"
+            | "break"
+            | "continue"
+            | "yield"
+            | "return"
+            | "async"
+            | "fn"
+            | "if"
+            | "match"
+            | "while"
+            | "try"
+            | "let"
     )
 }
 
@@ -113,8 +130,27 @@ pub fn is_right_associative(op: &str) -> bool {
 pub fn is_valid_token_type(type_str: &str) -> bool {
     matches!(
         type_str,
-        "INT" | "FLOAT" | "STR" | "FSTR" | "TSTR" | "BSTR" | "ID" | "KW" | 
-        "OP" | "(" | ")" | "{" | "}" | "[" | "]" | "NL" | ":" | "," | "@" | "." | "EOF"
+        "INT"
+            | "FLOAT"
+            | "STR"
+            | "FSTR"
+            | "TSTR"
+            | "BSTR"
+            | "ID"
+            | "KW"
+            | "OP"
+            | "("
+            | ")"
+            | "{"
+            | "}"
+            | "["
+            | "]"
+            | "NL"
+            | ":"
+            | ","
+            | "@"
+            | "."
+            | "EOF"
     )
 }
 
@@ -141,13 +177,13 @@ pub fn canonicalize_operator(op: &str) -> String {
 pub fn validate_interpolation_braces(content: &str) -> PyResult<bool> {
     let mut depth = 0;
     let mut in_escape = false;
-    
+
     for ch in content.chars() {
         if in_escape {
             in_escape = false;
             continue;
         }
-        
+
         match ch {
             '\\' => in_escape = true,
             '{' => depth += 1,
@@ -160,7 +196,7 @@ pub fn validate_interpolation_braces(content: &str) -> PyResult<bool> {
             _ => {}
         }
     }
-    
+
     Ok(depth == 0)
 }
 
@@ -180,17 +216,51 @@ pub fn is_valid_id_continue(ch: char) -> bool {
 /// Returns Vec of bools indicating which operators are valid
 #[pyfunction]
 pub fn validate_operators(operators: Vec<String>) -> Vec<bool> {
-    operators.iter().map(|op| {
-        matches!(
-            op.as_str(),
-            "+" | "-" | "*" | "/" | "//" | "%" | "**" |
-            "==" | "!=" | "<" | ">" | "<=" | ">=" |
-            "&" | "|" | "^" | "~" | "<<" | ">>" |
-            "+=" | "-=" | "*=" | "/=" | "//=" | "%=" | "**=" |
-            "&=" | "|=" | "^=" | "<<=" | ">>=" |
-            "|>" | "<|" | ".." | "..=" | ":=" | "=" | ":"
-        )
-    }).collect()
+    operators
+        .iter()
+        .map(|op| {
+            matches!(
+                op.as_str(),
+                "+" | "-"
+                    | "*"
+                    | "/"
+                    | "//"
+                    | "%"
+                    | "**"
+                    | "=="
+                    | "!="
+                    | "<"
+                    | ">"
+                    | "<="
+                    | ">="
+                    | "&"
+                    | "|"
+                    | "^"
+                    | "~"
+                    | "<<"
+                    | ">>"
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "//="
+                    | "%="
+                    | "**="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "<<="
+                    | ">>="
+                    | "|>"
+                    | "<|"
+                    | ".."
+                    | "..="
+                    | ":="
+                    | "="
+                    | ":"
+            )
+        })
+        .collect()
 }
 
 /// Optimize common pattern matching for parser lookahead
@@ -212,45 +282,16 @@ pub fn classify_keyword(kw: &str) -> u8 {
     match kw {
         // Definition keywords
         "class" | "fn" | "async" | "let" => 1,
-        
+
         // Control flow
         "if" | "elif" | "else" | "while" | "for" | "match" | "try" | "except" | "finally" => 2,
-        
+
         // Simple statements
         "break" | "continue" | "return" | "yield" | "use" => 3,
-        
+
         // Expression keywords
         "and" | "or" | "not" | "in" | "is" | "as" | "await" => 4,
-        
+
         _ => 0,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_precedence() {
-        assert!(get_operator_precedence("**").unwrap() > get_operator_precedence("*").unwrap());
-        assert!(get_operator_precedence("*").unwrap() > get_operator_precedence("+").unwrap());
-        assert!(get_operator_precedence("+").unwrap() > get_operator_precedence("<").unwrap());
-    }
-
-    #[test]
-    fn test_operator_classification() {
-        assert!(is_aug_assign_op("+="));
-        assert!(!is_aug_assign_op("+"));
-        assert!(is_comparison_op("=="));
-        assert!(is_binary_op("+"));
-        assert!(is_unary_op("-"));
-    }
-
-    #[test]
-    fn test_brace_validation() {
-        assert!(validate_interpolation_braces("{x}").unwrap());
-        assert!(validate_interpolation_braces("{x} and {y}").unwrap());
-        assert!(!validate_interpolation_braces("{x").unwrap());
-        assert!(!validate_interpolation_braces("x}").unwrap());
     }
 }

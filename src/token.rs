@@ -10,14 +10,14 @@ pub enum TokenType {
     FStr,
     TStr,
     BStr,
-    
+
     // Identifiers and keywords
     Id,
     Kw,
-    
+
     // Operators
     Op,
-    
+
     // Delimiters
     LParen,
     RParen,
@@ -25,7 +25,7 @@ pub enum TokenType {
     RBrace,
     LBracket,
     RBracket,
-    
+
     // Structural
     Newline,
     Semicolon,
@@ -33,7 +33,7 @@ pub enum TokenType {
     Comma,
     At,
     Dot,
-    
+
     // Special
     Eof,
 }
@@ -73,13 +73,13 @@ impl TokenType {
 pub struct Token {
     #[pyo3(get)]
     pub r#type: String,
-    
+
     #[pyo3(get)]
     pub value: String,
-    
+
     #[pyo3(get)]
     pub line: u32,
-    
+
     #[pyo3(get)]
     pub col: u32,
 }
@@ -151,9 +151,9 @@ impl Token {
 
 // Keywords set
 pub static KEYWORDS: &[&str] = &[
-    "fn", "async", "await", "use", "as", "if", "elif", "else", "match", "while",
-    "return", "yield", "for", "in", "true", "false", "none", "and", "or", "not",
-    "is", "break", "continue", "class", "try", "except", "finally",
+    "fn", "async", "await", "use", "as", "if", "elif", "else", "match", "while", "return", "yield",
+    "for", "in", "true", "false", "none", "and", "or", "not", "is", "break", "continue", "class",
+    "try", "except", "finally", "with",
 ];
 
 pub fn is_keyword(s: &str) -> bool {

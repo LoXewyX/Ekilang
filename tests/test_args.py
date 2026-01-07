@@ -9,7 +9,6 @@ from ekilang.executor import execute
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-
 def run(code: str):
     """Helper to run code snippets and return the namespace"""
     tokens = Lexer(code).tokenize()

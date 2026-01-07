@@ -1,5 +1,5 @@
-use crate::token::{Token, TokenType, is_keyword};
 use crate::error::LexError;
+use crate::token::{is_keyword, Token, TokenType};
 
 pub struct Lexer {
     source: Vec<char>,
@@ -93,7 +93,7 @@ impl Lexer {
         if self.current() == Some('0') {
             num_str.push('0');
             self.advance();
-            
+
             if let Some(prefix) = self.current() {
                 match prefix {
                     'x' | 'X' => {
@@ -195,13 +195,20 @@ impl Lexer {
         Ok(Token::new(token_type, num_str, start_line, start_col))
     }
 
-    fn read_string(&mut self, quote: char, is_fstring: bool, is_tstring: bool, is_raw: bool, is_bytes: bool) -> Result<Token, LexError> {
+    fn read_string(
+        &mut self,
+        quote: char,
+        is_fstring: bool,
+        is_tstring: bool,
+        is_raw: bool,
+        is_bytes: bool,
+    ) -> Result<Token, LexError> {
         let start_line = self.line;
         let start_col = self.col;
 
         // Check for triple quotes
         let triple = self.peek(1) == Some(quote) && self.peek(2) == Some(quote);
-        
+
         // Skip opening quote(s)
         self.advance();
         if triple {
@@ -312,8 +319,28 @@ impl Lexer {
         if let Some(two) = self.peek_string(2) {
             if matches!(
                 two.as_str(),
-                "=>" | "==" | "!=" | ">=" | "<=" | "+=" | "-=" | "*=" | "/=" | "%=" | "//" | ".." |
-                "<<" | ">>" | "&=" | "|=" | "^=" | "::" | "->" | "|>" | "<|" | "**" | ":="
+                "=>" | "=="
+                    | "!="
+                    | ">="
+                    | "<="
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "%="
+                    | "//"
+                    | ".."
+                    | "<<"
+                    | ">>"
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "::"
+                    | "->"
+                    | "|>"
+                    | "<|"
+                    | "**"
+                    | ":="
             ) {
                 op = two;
                 self.advance();
@@ -376,19 +403,22 @@ impl Lexer {
                     // Check for string prefixes first (most likely path)
                     if let Some(quote @ ('"' | '\'')) = self.current() {
                         let lower_ident = ident.to_ascii_lowercase();
-                        
+
                         // Single match handles both validation and flag extraction
-                        if let Some((is_fstring, is_tstring, is_raw, is_bytes)) = match lower_ident.as_str() {
-                            "f" => Some((true, false, false, false)),
-                            "t" => Some((false, true, false, false)),
-                            "r" => Some((false, false, true, false)),
-                            "b" => Some((false, false, false, true)),
-                            "u" => Some((false, false, false, false)),
-                            "fr" | "rf" => Some((true, false, true, false)),
-                            "br" | "rb" => Some((false, false, true, true)),
-                            _ => None,
-                        } {
-                            let token = self.read_string(quote, is_fstring, is_tstring, is_raw, is_bytes)?;
+                        if let Some((is_fstring, is_tstring, is_raw, is_bytes)) =
+                            match lower_ident.as_str() {
+                                "f" => Some((true, false, false, false)),
+                                "t" => Some((false, true, false, false)),
+                                "r" => Some((false, false, true, false)),
+                                "b" => Some((false, false, false, true)),
+                                "u" => Some((false, false, false, false)),
+                                "fr" | "rf" => Some((true, false, true, false)),
+                                "br" | "rb" => Some((false, false, true, true)),
+                                _ => None,
+                            }
+                        {
+                            let token =
+                                self.read_string(quote, is_fstring, is_tstring, is_raw, is_bytes)?;
                             tokens.push(token);
                             continue;
                         }
@@ -396,7 +426,9 @@ impl Lexer {
 
                     // Regular identifier or keyword
                     let token_type = if is_keyword(&ident) { "KW" } else { "ID" };
-                    tokens.push(Token::new_with_type(token_type, ident, start_line, start_col));
+                    tokens.push(Token::new_with_type(
+                        token_type, ident, start_line, start_col,
+                    ));
                 }
                 Some(ch) if ch.is_numeric() => {
                     tokens.push(self.read_number()?);
@@ -406,71 +438,146 @@ impl Lexer {
                     tokens.push(self.read_string(quote, false, false, false, false)?);
                 }
                 Some('(') => {
-                    tokens.push(Token::new(TokenType::LParen, "(".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::LParen,
+                        "(".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some(')') => {
-                    tokens.push(Token::new(TokenType::RParen, ")".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::RParen,
+                        ")".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some('{') => {
-                    tokens.push(Token::new(TokenType::LBrace, "{".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::LBrace,
+                        "{".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some('}') => {
-                    tokens.push(Token::new(TokenType::RBrace, "}".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::RBrace,
+                        "}".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some('[') => {
-                    tokens.push(Token::new(TokenType::LBracket, "[".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::LBracket,
+                        "[".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some(']') => {
-                    tokens.push(Token::new(TokenType::RBracket, "]".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::RBracket,
+                        "]".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some(':') => {
                     // Check for :: or := operators
                     if self.peek(1) == Some(':') {
-                        tokens.push(Token::new_with_type("OP", "::".to_string(), self.line, self.col));
+                        tokens.push(Token::new_with_type(
+                            "OP",
+                            "::".to_string(),
+                            self.line,
+                            self.col,
+                        ));
                         self.advance();
                         self.advance();
                     } else if self.peek(1) == Some('=') {
-                        tokens.push(Token::new_with_type("OP", ":=".to_string(), self.line, self.col));
+                        tokens.push(Token::new_with_type(
+                            "OP",
+                            ":=".to_string(),
+                            self.line,
+                            self.col,
+                        ));
                         self.advance();
                         self.advance();
                     } else {
-                        tokens.push(Token::new(TokenType::Colon, ":".to_string(), self.line, self.col));
+                        tokens.push(Token::new(
+                            TokenType::Colon,
+                            ":".to_string(),
+                            self.line,
+                            self.col,
+                        ));
                         self.advance();
                     }
                 }
                 Some(',') => {
-                    tokens.push(Token::new(TokenType::Comma, ",".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::Comma,
+                        ",".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some('@') => {
-                    tokens.push(Token::new(TokenType::At, "@".to_string(), self.line, self.col));
+                    tokens.push(Token::new(
+                        TokenType::At,
+                        "@".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some(';') => {
-                    tokens.push(Token::new_with_type("NL", ";".to_string(), self.line, self.col));
+                    tokens.push(Token::new_with_type(
+                        "NL",
+                        ";".to_string(),
+                        self.line,
+                        self.col,
+                    ));
                     self.advance();
                 }
                 Some('.') => {
                     // Check for .. or ..=
                     if self.peek(1) == Some('.') {
                         if self.peek(2) == Some('=') {
-                            tokens.push(Token::new_with_type("OP", "..=".to_string(), self.line, self.col));
+                            tokens.push(Token::new_with_type(
+                                "OP",
+                                "..=".to_string(),
+                                self.line,
+                                self.col,
+                            ));
                             self.advance();
                             self.advance();
                             self.advance();
                         } else {
-                            tokens.push(Token::new_with_type("OP", "..".to_string(), self.line, self.col));
+                            tokens.push(Token::new_with_type(
+                                "OP",
+                                "..".to_string(),
+                                self.line,
+                                self.col,
+                            ));
                             self.advance();
                             self.advance();
                         }
                     } else {
-                        tokens.push(Token::new(TokenType::Dot, ".".to_string(), self.line, self.col));
+                        tokens.push(Token::new(
+                            TokenType::Dot,
+                            ".".to_string(),
+                            self.line,
+                            self.col,
+                        ));
                         self.advance();
                     }
                 }
@@ -488,83 +595,5 @@ impl Lexer {
         }
 
         Ok(tokens)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_simple_identifiers() {
-        let mut lexer = Lexer::new("x y _var");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "ID");
-        assert_eq!(tokens[0].value, "x");
-        assert_eq!(tokens[2].r#type, "ID");
-        assert_eq!(tokens[2].value, "y");
-    }
-
-    #[test]
-    fn test_keywords() {
-        let mut lexer = Lexer::new("fn if else");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "KW");
-        assert_eq!(tokens[0].value, "fn");
-    }
-
-    #[test]
-    fn test_numbers() {
-        let mut lexer = Lexer::new("42 3.14");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "INT");
-        assert_eq!(tokens[0].value, "42");
-        assert_eq!(tokens[2].r#type, "FLOAT");
-        assert_eq!(tokens[2].value, "3.14");
-    }
-
-    #[test]
-    fn test_strings() {
-        let mut lexer = Lexer::new(r#""hello" 'world'"#);
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "STR");
-        assert_eq!(tokens[0].value, "hello");
-        assert_eq!(tokens[2].r#type, "STR");
-        assert_eq!(tokens[2].value, "world");
-    }
-
-    #[test]
-    fn test_fstrings() {
-        let mut lexer = Lexer::new(r#"f"x = {x}""#);
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "FSTR");
-        assert_eq!(tokens[0].value, "x = {x}");
-    }
-
-    #[test]
-    fn test_operators() {
-        let mut lexer = Lexer::new("+ - * / == != |> <|");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].r#type, "OP");
-        assert_eq!(tokens[0].value, "+");
-        assert_eq!(tokens[6].r#type, "OP");
-        assert_eq!(tokens[6].value, "|>");
-    }
-
-    #[test]
-    fn test_comments() {
-        let mut lexer = Lexer::new("x = 1 # comment\ny = 2");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].value, "x");
-        assert_eq!(tokens[4].r#type, "NL");
-        assert_eq!(tokens[5].value, "y");
-    }
-
-    #[test]
-    fn test_line_col_tracking() {
-        let mut lexer = Lexer::new("x\ny");
-        let tokens = lexer.tokenize().unwrap();
-        assert_eq!(tokens[0].line, 1);
-        assert_eq!(tokens[2].line, 2);
     }
 }

@@ -1,11 +1,13 @@
-mod token;
-mod lexer;
-mod error;
 mod builtins;
+mod error;
+mod lexer;
 mod parser;
+mod token;
 
 use lexer::Lexer;
-use pyo3::{Bound, PyErr, PyResult, Python, pyfunction, pymodule, types::PyModule, wrap_pyfunction};
+use pyo3::{
+    pyfunction, pymodule, types::PyModule, wrap_pyfunction, Bound, PyErr, PyResult, Python,
+};
 use token::Token;
 
 /// Tokenize Ekilang source code using Rust lexer
@@ -13,11 +15,11 @@ use token::Token;
 #[pyfunction]
 fn tokenize(source: &str) -> PyResult<Vec<Token>> {
     let mut lexer = Lexer::new(source);
-    
+
     match lexer.tokenize() {
         Ok(tokens) => Ok(tokens),
         Err(e) => Err(PyErr::new::<pyo3::exceptions::PySyntaxError, _>(
-            e.to_string()
+            e.to_string(),
         )),
     }
 }
@@ -27,14 +29,14 @@ fn tokenize(source: &str) -> PyResult<Vec<Token>> {
 fn rust_lexer(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register Token class
     m.add_class::<Token>()?;
-    
+
     // Register lexer functions
     m.add_function(wrap_pyfunction!(tokenize, m)?)?;
-    
+
     // Register optimization functions from builtins module
     m.add_function(wrap_pyfunction!(builtins::apply_binop, m)?)?;
     m.add_function(wrap_pyfunction!(builtins::apply_compare, m)?)?;
-    
+
     // Register parser helper functions
     m.add_function(wrap_pyfunction!(parser::get_operator_precedence, m)?)?;
     m.add_function(wrap_pyfunction!(parser::is_aug_assign_op, m)?)?;
@@ -51,6 +53,6 @@ fn rust_lexer(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parser::validate_operators, m)?)?;
     m.add_function(wrap_pyfunction!(parser::classify_operator, m)?)?;
     m.add_function(wrap_pyfunction!(parser::classify_keyword, m)?)?;
-    
+
     Ok(())
 }

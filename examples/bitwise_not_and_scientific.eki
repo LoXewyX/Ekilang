@@ -46,6 +46,3 @@ if (bits := 0b11110000) {
 if (sci := 1.5e6) > 1000000 {
     print(f"   sci = {sci:,.0f} (1.5e6)")
 }
-
-print()
-print("✓ All demonstrations complete!")

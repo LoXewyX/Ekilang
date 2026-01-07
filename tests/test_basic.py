@@ -458,6 +458,7 @@ lst += [5]
     )
     assert ns["lst"] == [1, 2, 3, 4, 5]
 
+
 def test_pow_assign():
     """Test the **= operator"""
     ns = run(

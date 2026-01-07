@@ -1,0 +1,165 @@
+# Async for loops with await expressions in Ekilang
+
+use asyncio
+
+print("=== Example 1: Regular for loop with await inside ===")
+
+async fn fetch_data(i) {
+    f"data_{i}"
+}
+
+async fn process_with_await() {
+    results = []
+    for i in [1, 2, 3, 4, 5] {
+        # Await async function inside regular for loop
+        value = await fetch_data(i)
+        results.append(value)
+    }
+    results
+}
+
+result1 = asyncio.run(process_with_await())
+print(f"Results: {result1}")
+
+print("\n=== Example 2: Async for with async generator ===")
+
+async fn async_generator(items) {
+    for item in items {
+        yield await fetch_data(item)
+    }
+}
+
+async fn process_async_for() {
+    results = []
+    async for value in async_generator([10, 20, 30]) {
+        results.append(value)
+    }
+    results
+}
+
+result2 = asyncio.run(process_async_for())
+print(f"Async for results: {result2}")
+
+print("\n=== Example 3: Async with + for loop with awaits ===")
+
+class DataStream {
+    fn __init__(self, count) {
+        self.count = count
+    }
+    async fn __aenter__(self) { self }
+    async fn __aexit__(self, exc_type, exc, tb) { none }
+    async fn fetch_item(self, i) {
+        f"item_{i}"
+    }
+}
+
+async fn process_with_context() {
+    results = []
+    async with DataStream(5) as stream {
+        for i in range(stream.count) {
+            # Await inside regular for loop within async with
+            item = await stream.fetch_item(i)
+            results.append(item)
+        }
+    }
+    results
+}
+
+result3 = asyncio.run(process_with_context())
+print(f"Context + await results: {result3}")
+
+print("\n=== Example 4: Multiple awaits in for loop ===")
+
+async fn fetch_user(id) {
+    f"user_{id}"
+}
+
+async fn fetch_posts(user) {
+    f"{user}_posts"
+}
+
+async fn process_multiple_awaits() {
+    results = []
+    for user_id in [1, 2, 3] {
+        user = await fetch_user(user_id)
+        posts = await fetch_posts(user)
+        results.append((user, posts))
+    }
+    results
+}
+
+result4 = asyncio.run(process_multiple_awaits())
+print(f"Multiple awaits: {result4}")
+
+print("\n=== Example 5: Async for with await in body ===")
+
+async fn process_async_item(value) {
+    f"processed_{value}"
+}
+
+async fn async_items() {
+    for i in [100, 200, 300] {
+        yield i
+    }
+}
+
+async fn process_async_for_with_await() {
+    results = []
+    async for item in async_items() {
+        # Await another async function while iterating
+        processed = await process_async_item(item)
+        results.append(processed)
+    }
+    results
+}
+
+result5 = asyncio.run(process_async_for_with_await())
+print(f"Async for + await: {result5}")
+
+print("\n=== Example 6: For loop with await in iterable expression ===")
+
+async fn fetch_items_list() {
+    # Simulate fetching a list asynchronously
+    ["apple", "banana", "cherry", "date"]
+}
+
+async fn process_await_in_for() {
+    results = []
+    # await directly in the for statement
+    for item in await fetch_items_list() {
+        results.append(f"Got: {item}")
+    }
+    results
+}
+
+result6 = asyncio.run(process_await_in_for())
+print(f"For with await iterable: {result6}")
+
+print("\n=== Example 7: Multiple for loops with awaited iterables ===")
+
+async fn fetch_users() {
+    [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+}
+
+async fn fetch_user_items(user_id) {
+    [f"item_{user_id}_A", f"item_{user_id}_B"]
+}
+
+async fn nested_await_for() {
+    all_results = []
+    # First for with await
+    for user in await fetch_users() {
+        user_items = []
+        # Nested for with await
+        for item in await fetch_user_items(user["id"]) {
+            user_items.append(item)
+        }
+        all_results.append((user["name"], user_items))
+    }
+    all_results
+}
+
+result7 = asyncio.run(nested_await_for())
+print(f"Nested await iterables: {result7}")
+
+print("\nAll async for/await patterns demonstrated!")

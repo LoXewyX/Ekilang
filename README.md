@@ -6,7 +6,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-283%20passing-brightgreen.svg)](tests/)
 
 [Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Performance](#performance) • [Documentation](#documentation)
 
@@ -75,6 +75,34 @@ uv pip install -e .
 # Or with pip
 pip install -e .
 ```
+
+### Building from source (custom Rust lexer)
+
+If you want to build a custom version or modify the Rust lexer:
+
+```bash
+# Install maturin (Rust-Python build tool)
+pip install maturin
+
+# Build and install directly (recommended for development)
+# Note: Currently using Python 3.14, which requires forward compatibility flag
+$env:PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1  # Windows PowerShell
+export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1  # Linux/Mac
+
+maturin develop --release
+
+# Alternative: Build wheel for distribution (creates wheel in target/wheels/)
+maturin build --release
+
+# The compiled module will be placed at:
+# ekilang/_rust_lexer.cp314-win_amd64.pyd (Windows)
+# ekilang/_rust_lexer.cpython-314-x86_64-linux-gnu.so (Linux)
+```
+
+**Note**: 
+- Use `maturin develop` to install directly into your package (for development)
+- Use `maturin build` to create a wheel file (for distribution)
+- PyO3 0.21.2 officially supports up to Python 3.12. The forward compatibility flag allows building with Python 3.14, but you may want to upgrade PyO3 in `Cargo.toml` for better support.
 
 ## Quick Start
 
@@ -156,49 +184,51 @@ Ekilang execution performance is measured on **compiled code only** (no tokeniza
 
 | Benchmark | Ekilang | Python | Performance |
 |-----------|---------|--------|-------------|
-| Async Function Declaration (5K) | 0.446ms | 0.673ms | ↑ **0.66x faster |
-| Async Multiple Functions (2K) | 0.159ms | 0.205ms | ↑ **0.78x faster |
+| Async Function Declaration (5K) | 0.315ms | 0.354ms | ↑ 1.12x faster |
+| Async Multiple Functions (2K) | 0.109ms | 0.159ms | ↑ 1.46x faster |
+| Async With + Async For (500 items) | 0.809ms | 1.354ms | ↑ 1.67x faster |
 
 #### Operator Optimizations
 
 | Benchmark | Ekilang | Python | Performance |
 |-----------|---------|--------|-------------|
-| Bitwise Operations (100K) | 42.820ms | 68.944ms | ↑ **0.62x faster |
-| Comparison Operations (100K) | 26.500ms | 25.182ms | ↓ 1.05x slower |
+| Bitwise Operations (100K) | 29.293ms | 24.671ms | ↓ 1.19x slower |
+| Comparison Operations (100K) | 18.343ms | 20.326ms | ↑ 1.11x faster |
 
 #### Language Features & Operations
 
 | Benchmark | Ekilang | Python | Performance |
 |-----------|---------|--------|-------------|
-| Simple Integer Arithmetic (100K) | 16.863ms | 20.316ms | ↑ 0.83x faster |
-| Binary Operations (100K) | 23.531ms | 20.370ms | ↓ 1.16x slower |
-| List Operations (50K) | 7.785ms | 8.072ms | ↑ 0.96x faster |
-| Power Operations (50K) | 22.420ms | 18.730ms | ↓ 1.20x slower |
-| Boolean Logic Operations (100K) | 25.282ms | 29.788ms | ↑ 0.85x faster |
-| Function Calls (10K) | 2.002ms | 1.419ms | ↓ 1.41x slower |
-| String Concatenation (10K) | 10.544ms | 13.312ms | ↑ 0.79x faster |
-| Dictionary Operations (5K) | 1.436ms | 2.025ms | ↑ 0.71x faster |
-| List Comprehension (10K) | 0.554ms | 0.602ms | ↑ 0.92x faster |
-| Lambda Functions (5K) | 0.783ms | 0.691ms | ↓ 1.13x slower |
-| Nested Loops (100x100) | 1.464ms | 0.992ms | ↓ 1.48x slower |
-| Tuple Operations (5K) | 0.951ms | 2.271ms | ↑ 0.42x faster |
-| Recursion (fibonacci up to 25) | 13.971ms | 14.083ms | ↑ 0.99x faster |
-| Type Conversions (10K) | 2.975ms | 3.726ms | ↑ 0.80x faster |
-| F-String Formatting (5K) | 14.496ms | 14.012ms | ↓ 1.03x slower |
+| Simple Integer Arithmetic (100K) | 13.445ms | 12.847ms | ↓ 1.05x slower |
+| Binary Operations (100K) | 18.544ms | 15.291ms | ↓ 1.21x slower |
+| List Operations (50K) | 5.690ms | 5.001ms | ↓ 1.14x slower |
+| With Statement (1000 iterations) | 0.990ms | 1.019ms | ↑ 1.03x faster |
+| Multiple Context Managers (500) | 0.967ms | 1.050ms | ↑ 1.09x faster |
+| Nested Context Managers (500) | 0.971ms | 1.303ms | ↑ 1.34x faster |
+| Power Operations (50K) | 4.445ms | 4.109ms | ↓ 1.08x slower |
+| Boolean Logic Operations (100K) | 15.700ms | 14.979ms | ↓ 1.05x slower |
+| Function Calls (10K) | 1.909ms | 1.918ms | ↑ 1.00x faster |
+| String Concatenation (10K) | 16.906ms | 25.957ms | ↑ 1.54x faster |
+| Dictionary Operations (5K) | 2.925ms | 2.462ms | ↓ 1.19x slower |
+| List Comprehension (10K) | 0.678ms | 1.387ms | ↑ 2.04x faster |
+| Lambda Functions (5K) | 1.102ms | 3.906ms | ↑ 3.55x faster |
+| Nested Loops (100x100) | 1.565ms | 4.803ms | ↑ 3.07x faster |
+| Tuple Operations (5K) | 2.189ms | 11.052ms | ↑ 5.05x faster |
+| Recursion (fibonacci up to 25) | 25.522ms | 9.820ms | ↓ 2.60x slower |
+| Type Conversions (10K) | 2.467ms | 3.104ms | ↑ 1.26x faster |
+| F-String Formatting (5K) | 10.514ms | 10.047ms | ↓ 1.05x slower |
 
 #### Summary
 
-- **Total Benchmarks:** 19
-- **Ekilang Faster:** 12 operations (63%)
-- **Python Faster:** 7 operations (37%)
-- **Average:** 0.88x (12.4% faster)
+- **Total Benchmarks:** 23
+- **Ekilang Faster:** 14 operations (61%)
+- **Python Faster:** 9 operations (39%)
+- **Average:** 0.99x (0.9% faster)
 
 **Notes:**
-- As an interpreted language, Ekilang is expected to run slower than standard Python.
-- Despite optimizations, it has higher overhead than Python.
-- Results may vary between runs and across different environments.
-- Performance can differ significantly depending on the type of operation and cache state.
-- Cold vs hot cache states can significantly affect results
+- Results may vary between runs and across different environments
+- Performance can differ significantly depending on the type of operation and cache state
+- Benchmark shows Ekilang matches Python performance overall
 
 *See [tests/benchmark.py](tests/benchmark.py) for full benchmark suite*
 
@@ -227,7 +257,7 @@ ekilang <file.eki> --dump-py # Show transpiled Python code
 ### Testing
 
 ```bash
-# Run all tests (262 tests)
+# Run all tests (283 tests)
 python -m pytest
 
 # Run benchmarks

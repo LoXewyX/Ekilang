@@ -42,7 +42,11 @@ for line in output.split("\n"):
         match = re.search(r"Benchmark: (.+)$", line)
         if match:
             current_name = match.group(1).strip()
-    elif "Ekilang:" in line and "compiled code only" not in line and "error" not in line.lower():
+    elif (
+        "Ekilang:" in line
+        and "compiled code only" not in line
+        and "error" not in line.lower()
+    ):
         # Extract time from line like "  Ekilang: 27.553ms (avg of 3 runs)"
         match = re.search(r"(\d+\.\d+)ms", line)
         if match:
@@ -58,7 +62,12 @@ for line in output.split("\n"):
         is_faster: bool = "faster" in line.lower()
         if ratio_match:
             current_ratio = float(ratio_match.group(1))
-            if current_name and current_eki is not None and current_py is not None and current_ratio:
+            if (
+                current_name
+                and current_eki is not None
+                and current_py is not None
+                and current_ratio
+            ):
                 benchmarks.append(
                     {
                         "name": current_name,
@@ -93,7 +102,18 @@ feature_benchmarks: List[Dict[str, Any]] = []
 for b in benchmarks:
     if any(x in b["name"] for x in ["Async"]):
         async_benchmarks.append(b)
-    elif any(x in b["name"] for x in ["Augmented", "Bitwise", "Comparison", "Operator", "Unary", "Walrus", "Pipeline"]):
+    elif any(
+        x in b["name"]
+        for x in [
+            "Augmented",
+            "Bitwise",
+            "Comparison",
+            "Operator",
+            "Unary",
+            "Walrus",
+            "Pipeline",
+        ]
+    ):
         operator_benchmarks.append(b)
     else:
         feature_benchmarks.append(b)
@@ -106,7 +126,9 @@ if async_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        perf_str: str = (
+            f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        )
         print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 if operator_benchmarks:
@@ -116,7 +138,9 @@ if operator_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        perf_str: str = (
+            f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        )
         print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 if feature_benchmarks:
@@ -126,7 +150,9 @@ if feature_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        perf_str: str = (
+            f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        )
         print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 avg_eki: float = 0
@@ -140,9 +166,7 @@ if count > 0:
     avg_ratio = avg_eki / avg_py
     faster: str = "FASTER" if avg_ratio < 1 else "SLOWER"
     perf_str: str = f"{'↑ ' if avg_ratio < 1 else '↓ '}{avg_ratio:.2f}x {faster}"
-    print(
-        f"{'AVERAGE':<45} {avg_eki:<15.3f}ms {avg_py:<15.3f}ms {perf_str:<20}"
-    )
+    print(f"{'AVERAGE':<45} {avg_eki:<15.3f}ms {avg_py:<15.3f}ms {perf_str:<20}")
 
 print("=" * 100)
 

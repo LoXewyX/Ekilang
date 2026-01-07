@@ -26,6 +26,9 @@ from .types import (
     Match,
     While,
     For,
+    AsyncFor,
+    With,
+    AsyncWith,
     Return,
     Break,
     Continue,
@@ -755,7 +758,38 @@ class CodeGen:
             return ast.While(
                 test=self.expr(node.test),
                 body=self._stmts(node.body),
-                orelse=[],
+                orelse=self._stmts(node.orelse) if node.orelse else [],
+            )
+        if isinstance(node, With):
+            # Convert WithItem objects to ast.withitem
+            items: List[ast.withitem] = []
+            for item in node.items:
+                context_expr = self.expr(item.context_expr)
+                optional_vars = None
+                if item.optional_vars:
+                    optional_vars = ast.Name(
+                        id=self._safe_name(item.optional_vars), ctx=ast.Store()
+                    )
+                items.append(ast.withitem(context_expr=context_expr, optional_vars=optional_vars))
+            
+            return ast.With(
+                items=items,
+                body=self._stmts(node.body),
+            )
+        if isinstance(node, AsyncWith):
+            items = []
+            for item in node.items:
+                context_expr = self.expr(item.context_expr)
+                optional_vars = None
+                if item.optional_vars:
+                    optional_vars = ast.Name(
+                        id=self._safe_name(item.optional_vars), ctx=ast.Store()
+                    )
+                items.append(ast.withitem(context_expr=context_expr, optional_vars=optional_vars))
+
+            return ast.AsyncWith(
+                items=items,
+                body=self._stmts(node.body),
             )
         if isinstance(node, For):
             # node.target is always a list[Name]; use single Name when possible
@@ -775,7 +809,26 @@ class CodeGen:
                 target=target,
                 iter=self.expr(node.iter),
                 body=self._stmts(node.body),
-                orelse=[],
+                orelse=self._stmts(node.orelse) if node.orelse else [],
+            )
+        if isinstance(node, AsyncFor):
+            if len(node.target) == 1:
+                target = ast.Name(
+                    id=self._safe_name(node.target[0].id), ctx=ast.Store()
+                )
+            else:
+                target = ast.Tuple(
+                    elts=[
+                        ast.Name(id=self._safe_name(t.id), ctx=ast.Store())
+                        for t in node.target
+                    ],
+                    ctx=ast.Store(),
+                )
+            return ast.AsyncFor(
+                target=target,
+                iter=self.expr(node.iter),
+                body=self._stmts(node.body),
+                orelse=self._stmts(node.orelse) if node.orelse else [],
             )
         if isinstance(node, Break):
             return ast.Break()

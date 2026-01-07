@@ -7,16 +7,17 @@ import time
 import sys
 import traceback
 from pathlib import Path
-from typing import List
+from typing import Any, List
 from ekilang.lexer import tokenize
 from ekilang.parser import Parser
 from ekilang.runtime import compile_module
 from ekilang.executor import execute
+from ekilang.types import Module
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def compile_ekilang(code: str):
+def compile_ekilang(code: str) -> tuple[Module, Any]:
     """Compile Ekilang code and return (ast, code_obj)."""
     # Allow printing of very large integers in benchmarks (Python 3.11+)
     if hasattr(sys, "set_int_max_str_digits"):
@@ -27,7 +28,7 @@ def compile_ekilang(code: str):
     return ast, code_obj
 
 
-def run_ekilang_compiled(ast, code_obj) -> None:
+def run_ekilang_compiled(ast: Module, code_obj: Any) -> None:
     """Execute pre-compiled Ekilang code."""
     try:
         execute(ast, code_obj=code_obj)
@@ -92,7 +93,13 @@ def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
     print(f"Execution Time (compiled code only):")
     print(f"  Ekilang: {eki_exec_avg*1000:.3f}ms (avg of {runs} runs)")
     print(f"  Python:  {py_exec_avg*1000:.3f}ms (avg of {runs} runs)")
-    print(f"  Ratio:   {exec_ratio:.2f}x {'slower' if exec_ratio > 1 else 'faster'}")
+    
+    # Display ratio: when Ekilang is faster, show inverse ratio for clarity
+    if exec_ratio < 1:
+        display_ratio = 1 / exec_ratio
+        print(f"  Ratio:   {display_ratio:.2f}x faster")
+    else:
+        print(f"  Ratio:   {exec_ratio:.2f}x slower")
 
 
 # ============================================================================
@@ -113,7 +120,7 @@ for i in range(100_000):
     result = result - (i // 2)
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -136,7 +143,7 @@ for i in range(100_000):
     result = result & 255
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -160,7 +167,7 @@ for i in range(50_000):
         items.pop()
 
 print(len(items))""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -186,7 +193,7 @@ for i in range(5_000):
     result = result + i
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 benchmark(
@@ -215,7 +222,213 @@ for i in range(2_000):
     result = result + 1
 
 print(result)""",
-    runs=3
+    runs=3,
+)
+
+# ============================================================================
+# ASYNC CONTEXT MANAGERS / ASYNC ITERATION
+# ============================================================================
+
+benchmark(
+    "Async With + Async For (streaming 500 items)",
+    """use asyncio
+
+class ChunkStream {
+    fn __init__(self, chunks) {
+        self.chunks = chunks
+    }
+    fn __aiter__(self) {
+        async fn iter_chunks(chunks) {
+            for chunk in chunks {
+                yield chunk
+            }
+        }
+        iter_chunks(self.chunks)
+    }
+}
+
+class Response {
+    fn __init__(self, chunks) {
+        self.content = ChunkStream(chunks)
+    }
+    async fn __aenter__(self) { self }
+    async fn __aexit__(self, exc_type, exc, tb) { none }
+}
+
+class Session {
+    async fn get(self, n) {
+        # simulate n small chunks
+        chunks = [f"c{i}" for i in range(n)]
+        Response(chunks)
+    }
+}
+
+async fn main() {
+    session = Session()
+    total = 0
+    async with await session.get(500) as resp {
+        async for chunk in resp.content {
+            total = total + len(chunk)
+        }
+    }
+    total
+}
+
+result = asyncio.run(main())
+print(result)""",
+    """import asyncio
+
+class ChunkStream:
+    def __init__(self, chunks):
+        self.chunks = chunks
+    def __aiter__(self):
+        async def iter_chunks(chunks):
+            for chunk in chunks:
+                yield chunk
+        return iter_chunks(self.chunks)
+
+class Response:
+    def __init__(self, chunks):
+        self.content = ChunkStream(chunks)
+    async def __aenter__(self):
+        return self
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
+
+class Session:
+    async def get(self, n):
+        chunks = [f"c{i}" for i in range(n)]
+        return Response(chunks)
+
+async def main():
+    session = Session()
+    total = 0
+    async with await session.get(500) as resp:
+        async for chunk in resp.content:
+            total = total + len(chunk)
+    return total
+
+result = asyncio.run(main())
+print(result)""",
+    runs=3,
+)
+
+# ============================================================================
+# CONTEXT MANAGER OPERATIONS
+# ============================================================================
+
+benchmark(
+    "With Statement (1000 iterations)",
+    """use contextlib
+
+@contextlib.contextmanager
+fn simple_context() {
+    yield
+}
+
+count = 0
+for i in range(1_000) {
+    with simple_context() {
+        count = count + 1
+    }
+}
+print(count)""",
+    """import contextlib
+
+@contextlib.contextmanager
+def simple_context():
+    yield
+
+count = 0
+for i in range(1_000):
+    with simple_context():
+        count = count + 1
+
+print(count)""",
+    runs=3,
+)
+
+benchmark(
+    "Multiple Context Managers (500 iterations)",
+    """use contextlib
+
+@contextlib.contextmanager
+fn ctx1() {
+    yield "a"
+}
+
+@contextlib.contextmanager
+fn ctx2() {
+    yield "b"
+}
+
+result = ""
+for i in range(500) {
+    with ctx1() as a, ctx2() as b {
+        result = a + b
+    }
+}
+print(result)""",
+    """import contextlib
+
+@contextlib.contextmanager
+def ctx1():
+    yield "a"
+
+@contextlib.contextmanager
+def ctx2():
+    yield "b"
+
+result = ""
+for i in range(500):
+    with ctx1() as a, ctx2() as b:
+        result = a + b
+
+print(result)""",
+    runs=3,
+)
+
+benchmark(
+    "Nested Context Managers (500 iterations)",
+    """use contextlib
+
+@contextlib.contextmanager
+fn outer() {
+    yield 1
+}
+
+@contextlib.contextmanager
+fn inner() {
+    yield 2
+}
+
+total = 0
+for i in range(500) {
+    with outer() as x {
+        with inner() as y {
+            total = total + x + y
+        }
+    }
+}
+print(total)""",
+    """import contextlib
+
+@contextlib.contextmanager
+def outer():
+    yield 1
+
+@contextlib.contextmanager
+def inner():
+    yield 2
+
+total = 0
+for i in range(500):
+    with outer() as x:
+        with inner() as y:
+            total = total + x + y
+
+print(total)""",
+    runs=3,
 )
 
 # ============================================================================
@@ -240,7 +453,7 @@ for i in range(100_000):
 
 # Print low 16 hex digits for readability
 print(hex(result & 0xFFFF_FFFF_FFFF_FFFF)[-16:])""",
-    runs=3
+    runs=3,
 )
 
 benchmark(
@@ -260,7 +473,7 @@ for i in range(50_000):
         result = result // 100
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 benchmark(
@@ -283,7 +496,7 @@ for i in range(100_000):
         count = count + 1
 
 print(count)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -310,7 +523,7 @@ for i in range(100_000):
         result = result - 1
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -336,7 +549,7 @@ for i in range(10_000):
     result = add(result, i)
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -355,7 +568,7 @@ for i in range(10_000):
     result = result + str(i)
 
 print(len(result))""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -376,7 +589,7 @@ for i in range(5_000):
     data[key] = i * 2
 
 print(len(data))""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -389,7 +602,7 @@ benchmark(
 print(len(items))""",
     """items = [x * x for x in range(10_000)]
 print(len(items))""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -410,7 +623,7 @@ for i in range(5_000):
     result = result + double(i)
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -432,7 +645,7 @@ for i in range(100):
         total = total + i * j
 
 print(total)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -453,7 +666,7 @@ for i in range(5_000):
     tuples.append(t)
 
 print(len(tuples))""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -478,7 +691,7 @@ print(result)""",
 
 result = fib(25)
 print(result)""",
-    runs=1
+    runs=1,
 )
 
 # ============================================================================
@@ -501,7 +714,7 @@ for i in range(10_000):
     result = result + n
 
 print(result)""",
-    runs=3
+    runs=3,
 )
 
 # ============================================================================
@@ -522,7 +735,7 @@ for i in range(5_000):
     result = result + s
 
 print(len(result))""",
-    runs=3
+    runs=3,
 )
 
 print("\n" + "=" * 60)

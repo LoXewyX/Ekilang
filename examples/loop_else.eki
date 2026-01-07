@@ -1,0 +1,67 @@
+# Demonstration of for-else and while-else in Ekilang
+
+print("=== For-Else Demo ===")
+
+# For-else: else runs when loop completes normally
+print("\nLoop completing normally:")
+for i in [1, 2, 3] {
+    print(f"  Processing {i}")
+} else {
+    print("  Loop completed successfully!")
+}
+
+# For-else with break: else doesn't run
+print("\nLoop with break:")
+for i in [1, 2, 3, 4, 5] {
+    print(f"  Processing {i}")
+    if i == 3 {
+        print("  Breaking early!")
+        break
+    }
+} else {
+    print("  This won't print because we broke out")
+}
+
+print("\n=== While-Else Demo ===")
+
+# While-else: else runs when loop completes normally
+print("\nLoop completing normally:")
+i = 0
+while i < 3 {
+    print(f"  Count: {i}")
+    i += 1
+} else {
+    print("  Counting finished!")
+}
+
+# While-else with break: else doesn't run
+print("\nLoop with break:")
+i = 0
+while i < 10 {
+    print(f"  Count: {i}")
+    i += 1
+    if i == 3 {
+        print("  Breaking early!")
+        break
+    }
+} else {
+    print("  This won't print because we broke out")
+}
+
+# Practical use case: searching with for-else
+print("\n=== Practical Example: Search ===")
+
+fn find_item(items, target) {
+    for item in items {
+        if item == target {
+            print(f"Found: {target}")
+            break
+        }
+    } else {
+        print(f"Not found: {target}")
+    }
+}
+
+numbers = [10, 20, 30, 40, 50]
+find_item(numbers, 30)  # Found
+find_item(numbers, 99)  # Not found
