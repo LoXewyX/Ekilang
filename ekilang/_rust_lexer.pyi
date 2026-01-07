@@ -3,7 +3,7 @@
 from typing import Any, List
 from ekilang.lexer import Token
 
-def tokenize(source: str) -> List[Token]:  # pylint: disable=unused-argument
+def tokenize(source: str) -> List[Token]:
     """Tokenize Ekilang source code.
 
     Args:
@@ -14,7 +14,7 @@ def tokenize(source: str) -> List[Token]:  # pylint: disable=unused-argument
     """
 
 def apply_binop(
-    left: Any, op: str, right: Any  # pylint: disable=unused-argument
+    left: Any, op: str, right: Any
 ) -> Any:
     """Apply a binary operation efficiently using Rust.
 
@@ -28,7 +28,7 @@ def apply_binop(
     """
 
 def apply_compare(
-    left: Any, op: str, right: Any  # pylint: disable=unused-argument
+    left: Any, op: str, right: Any
 ) -> bool:
     """Apply a comparison operation efficiently using Rust.
 
@@ -42,53 +42,53 @@ def apply_compare(
     """
 
 # Parser helpers
-def get_operator_precedence(op: str) -> int:  # pylint: disable=unused-argument
+def get_operator_precedence(op: str) -> int:
     """Get operator precedence level (higher = higher precedence)."""
 
-def is_aug_assign_op(op: str) -> bool:  # pylint: disable=unused-argument
+def is_aug_assign_op(op: str) -> bool:
     """Check if operator is augmented assignment (+=, -=, etc.)."""
 
-def is_comparison_op(op: str) -> bool:  # pylint: disable=unused-argument
+def is_comparison_op(op: str) -> bool:
     """Check if operator is comparison (<, >, ==, etc.)."""
 
-def is_binary_op(op: str) -> bool:  # pylint: disable=unused-argument
+def is_binary_op(op: str) -> bool:
     """Check if operator is binary arithmetic."""
 
-def is_unary_op(op: str) -> bool:  # pylint: disable=unused-argument
+def is_unary_op(op: str) -> bool:
     """Check if operator is unary (-, ~, not)."""
 
-def is_statement_keyword(kw: str) -> bool:  # pylint: disable=unused-argument
+def is_statement_keyword(kw: str) -> bool:
     """Check if keyword starts a statement."""
 
-def is_right_associative(op: str) -> bool:  # pylint: disable=unused-argument
+def is_right_associative(op: str) -> bool:
     """Check if operator is right-associative."""
 
-def is_valid_token_type(type_str: str) -> bool:  # pylint: disable=unused-argument
+def is_valid_token_type(type_str: str) -> bool:
     """Validate token type string."""
 
-def canonicalize_operator(op: str) -> str:  # pylint: disable=unused-argument
+def canonicalize_operator(op: str) -> str:
     """Return canonical form of operator."""
 
 def validate_interpolation_braces(
     content: str,
-) -> bool:  # pylint: disable=unused-argument
+) -> bool:
     """Check if string interpolation braces are balanced."""
 
-def is_valid_id_start(ch: str) -> bool:  # pylint: disable=unused-argument
+def is_valid_id_start(ch: str) -> bool:
     """Check if character can start an identifier."""
 
-def is_valid_id_continue(ch: str) -> bool:  # pylint: disable=unused-argument
+def is_valid_id_continue(ch: str) -> bool:
     """Check if character can continue an identifier."""
 
 def validate_operators(
     operators: List[str],
-) -> List[bool]:  # pylint: disable=unused-argument
+) -> List[bool]:
     """Batch validate multiple operators."""
 
 def classify_operator(
     op: str,
-) -> tuple[bool, bool, bool, bool]:  # pylint: disable=unused-argument
+) -> tuple[bool, bool, bool, bool]:
     """Classify operator: (is_assign, is_aug_assign, is_comparison, is_binary)."""
 
-def classify_keyword(kw: str) -> int:  # pylint: disable=unused-argument
+def classify_keyword(kw: str) -> int:
     """Classify keyword: 0=not_keyword, 1=definition, 2=control_flow, 3=simple_stmt, 4=expression."""

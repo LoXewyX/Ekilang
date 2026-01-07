@@ -23,6 +23,12 @@ result: subprocess.CompletedProcess[str] = subprocess.run(
 )
 output: str = result.stdout
 
+# If process crashed (segfault), show error
+if result.returncode != 0 and result.returncode != 1:
+    print(f"\nNote: benchmark_enhanced.py crashed with code {result.returncode}")
+    print("This may indicate parser issues with certain code patterns.")
+    print("Try running: python .\\tests\\benchmark_enhanced.py\n")
+
 # Parse results
 benchmarks: list[dict[str, Any]] = []
 current_name: str | None = None
@@ -31,30 +37,42 @@ current_py: float | None = None
 current_ratio: float | None = None
 
 for line in output.split("\n"):
-    if "Benchmark:" in line:
-        current_name = line.split("Benchmark: ")[1]
+    if "Benchmark:" in line and "============" not in line:
+        # Extract benchmark name from line like "Benchmark: Simple Integer Arithmetic (100K iterations)"
+        match = re.search(r"Benchmark: (.+)$", line)
+        if match:
+            current_name = match.group(1).strip()
     elif "Ekilang:" in line and "error" not in line.lower():
+        # Extract time from line like "Ekilang: 34.138ms (avg of 3 runs)"
         match = re.search(r"(\d+\.\d+)ms", line)
         if match:
             current_eki = float(match.group(1))
     elif "Python:" in line:
+        # Extract time from line like "Python:  29.300ms (avg of 3 runs)"
         match = re.search(r"(\d+\.\d+)ms", line)
         if match:
             current_py = float(match.group(1))
     elif "Ratio:" in line:
-        match = re.search(r"(\d+\.\d+)x", line)
-        if match:
-            current_ratio = float(match.group(1))
-            if current_name and current_eki and current_py and current_ratio:
+        # Extract ratio and direction from line like "Ratio:   1.17x slower"
+        ratio_match = re.search(r"(\d+\.\d+)x", line)
+        is_faster: bool = "faster" in line.lower()
+        if ratio_match:
+            current_ratio = float(ratio_match.group(1))
+            if current_name and current_eki is not None and current_py is not None and current_ratio:
                 benchmarks.append(
                     {
                         "name": current_name,
                         "eki": current_eki,
                         "py": current_py,
                         "ratio": current_ratio,
-                        "faster": "faster" in line.lower(),
+                        "faster": is_faster,
                     }
                 )
+                # Reset for next benchmark
+                current_name = None
+                current_eki = None
+                current_py = None
+                current_ratio = None
 
 # Print summary
 print("\n" + "=" * 80)

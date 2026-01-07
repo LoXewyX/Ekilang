@@ -5,6 +5,7 @@ Tests areas where Rust optimizations can make a difference
 
 import time
 import sys
+import traceback
 from pathlib import Path
 from typing import List
 from ekilang.lexer import tokenize
@@ -16,10 +17,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def run_ekilang(code: str) -> None:
     """Execute Ekilang code"""
-    tokens = tokenize(code)
-    ast = Parser(tokens).parse()
-    code_obj = compile_module(ast)
-    exec(code_obj)
+    try:
+        tokens = tokenize(code)
+        ast = Parser(tokens).parse()
+        code_obj = compile_module(ast)
+        exec(code_obj)
+    except Exception as e:
+        print(f"Error in run_ekilang: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        raise
 
 
 def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
@@ -33,14 +39,14 @@ def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
         for _ in range(1):
             run_ekilang(eki_code)
     except Exception as e:
-        print(f"Ekilang warmup error: {e}")
+        print(f"Ekilang warmup error: {type(e).__name__}: {e}")
         return
 
     try:
         for _ in range(1):
             exec(py_code)
     except Exception as e:
-        print(f"Python warmup error: {e}")
+        print(f"Python warmup error: {type(e).__name__}: {e}")
         return
 
     # Ekilang benchmark
@@ -51,7 +57,7 @@ def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
             run_ekilang(eki_code)
             eki_times.append(time.perf_counter() - t0)
         except Exception as e:
-            print(f"Ekilang error: {e}")
+            print(f"Ekilang error: {type(e).__name__}: {e}")
             return
 
     # Python benchmark
@@ -62,7 +68,7 @@ def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
             exec(py_code)
             py_times.append(time.perf_counter() - t0)
         except Exception as e:
-            print(f"Python error: {e}")
+            print(f"Python error: {type(e).__name__}: {e}")
             return
 
     eki_avg: float = sum(eki_times) / len(eki_times)
@@ -75,503 +81,430 @@ def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
 
 
 # ============================================================================
-# ASYNC/AWAIT OPERATIONS (PARSING PERFORMANCE)
+# SIMPLE OPERATIONS (BASELINE)
 # ============================================================================
 
 benchmark(
-    "Async String Operations (1K iterations)",
-    """fn process_strings() {
-  code = \"async fn compute(n) { n * 2 }\"
-  results = []
-  
-  for i in range(1000) {
-    modified = code + str(i)
-    if \"async\" in modified {
-      results.append(len(modified))
-    }
-  }
-  
-  print(len(results))
-}
-
-process_strings()""",
-    """def process_strings():
-  code = "async def compute(n): return n * 2"
-  results = []
-  
-  for i in range(1000):
-    modified = code + str(i)
-    if "async" in modified:
-      results.append(len(modified))
-  
-  print(len(results))
-
-process_strings()""",
-    runs=3
-)
-
-benchmark(
-    "Async Filtering (50K patterns)",
-    """fn filter_async() {
-  patterns = [
-    \"async fn\",
-    \"await \",
-    \"fn \",
-    \"def \"
-  ]
-  
-  count = 0
-  for i in range(50000) {
-    p = patterns[i % 4]
-    if p.startswith(\"async\") {
-      count = count + 1
-    }
-  }
-  
-  print(count)
-}
-
-filter_async()""",
-    """def filter_async():
-  patterns = [
-    "async def",
-    "await ",
-    "def ",
-    "def "
-  ]
-  
-  count = 0
-  for i in range(50000):
-    p = patterns[i % 4]
-    if p.startswith("async"):
-      count = count + 1
-  
-  print(count)
-
-filter_async()""",
-    runs=3
-)
-
-benchmark(
-    "Await Calls (25K operations)",
-    """fn simulate_await() {
-  results = []
-  
-  for i in range(25000) {
-    x = i * 2 + 1
-    y = x % 7
-    z = y + i
-    results.append(z)
-  }
-  
-  print(len(results))
-}
-
-simulate_await()""",
-    """def simulate_await():
-  results = []
-  
-  for i in range(25000):
-    x = i * 2 + 1
-    y = x % 7
-    z = y + i
-    results.append(z)
-  
-  print(len(results))
-
-simulate_await()""",
-    runs=3
-)
-
-benchmark(
-    "Keyword Matching (100K iterations)",
-    """fn match_keywords() {
-  async_keywords = [
-    \"async\",
-    \"await\",
-    \"fn\",
-    \"yield\",
-    \"with\",
-    \"try\",
-    \"except\",
-    \"finally\"
-  ]
-  
-  count = 0
-  for i in range(100000) {
-    kw = async_keywords[i % 8]
-    if kw == \"async\" {
-      count = count + 1
-    }
-  }
-  
-  print(count)
-}
-
-match_keywords()""",
-    """def match_keywords():
-  async_keywords = [
-    "async",
-    "await",
-    "def",
-    "yield",
-    "with",
-    "try",
-    "except",
-    "finally"
-  ]
-  
-  count = 0
-  for i in range(100000):
-    kw = async_keywords[i % 8]
-    if kw == "async":
-      count = count + 1
-  
-  print(count)
-
-match_keywords()""",
-    runs=3
-)
-
-# ============================================================================
-# AUGMENTED ASSIGNMENT OPERATORS (Parser Optimization Target)
-# ============================================================================
-
-benchmark(
-    "Augmented Assignment Ops (100K iterations)",
-    """x = 0
-y = 10
-z = 5
-
+    "Simple Integer Arithmetic (100K iterations)",
+    """result = 0
 for i in range(100_000) {
-    x += i
-    y *= 2
-    z -= 1
-    y //= 3
+    result = result + i
+    result = result - (i // 2)
 }
-print(x + y + z)""",
-    """x = 0
-y = 10
-z = 5
-
+print(result)""",
+    """result = 0
 for i in range(100_000):
-    x += i
-    y *= 2
-    z -= 1
-    y //= 3
+    result = result + i
+    result = result - (i // 2)
 
-print(x + y + z)""",
-    runs=2,
+print(result)""",
+    runs=3
 )
 
-
 # ============================================================================
-# BITWISE OPERATIONS (Parser Classification)
+# BINARY OPERATORS (100K iterations)
 # ============================================================================
 
 benchmark(
-    "Bitwise Operations (50K iterations)",
+    "Binary Operations (100K iterations)",
     """result = 0
-for i in range(50_000) {
-    result = result | (i & 0xFF)
-    result = result ^ (i << 2)
-    result = result & (i >> 1)
+for i in range(100_000) {
+    result = result * 2 + i % 10
+    result = result >> 1
+    result = result & 255
 }
 print(result)""",
     """result = 0
-for i in range(50_000):
-    result = result | (i & 0xFF)
-    result = result ^ (i << 2)
-    result = result & (i >> 1)
+for i in range(100_000):
+    result = result * 2 + i % 10
+    result = result >> 1
+    result = result & 255
 
 print(result)""",
+    runs=3
 )
 
-
 # ============================================================================
-# COMPARISON CHAINS (Parser Optimization)
+# LIST OPERATIONS
 # ============================================================================
 
 benchmark(
-    "Chained Comparisons (50K iterations)",
-    """count = 0
+    "List Operations (50K iterations)",
+    """items = []
 for i in range(50_000) {
-    if 0 < i < 25_000 { count = count + 1 }
-    if i >= 10 and i <= 30_000 { count = count + 1 }
+    items.append(i)
+    if i % 100 == 0 {
+        items.pop()
+    }
+}
+print(len(items))""",
+    """items = []
+for i in range(50_000):
+    items.append(i)
+    if i % 100 == 0:
+        items.pop()
+
+print(len(items))""",
+    runs=3
+)
+
+# ============================================================================
+# ASYNC/AWAIT OPERATIONS
+# ============================================================================
+
+benchmark(
+    "Async Function Declaration (5K iterations)",
+    """async fn fetch(x) {
+    x * 2
+}
+
+result = 0
+for i in range(5_000) {
+    result = result + i
+}
+print(result)""",
+    """async def fetch(x):
+    x * 2
+
+result = 0
+for i in range(5_000):
+    result = result + i
+
+print(result)""",
+    runs=3
+)
+
+benchmark(
+    "Async Multiple Functions (2K iterations)",
+    """async fn task1(x) {
+    x + 10
+}
+
+async fn task2(x) {
+    x * 3
+}
+
+result = 0
+for i in range(2_000) {
+    result = result + 1
+}
+print(result)""",
+    """async def task1(x):
+    x + 10
+
+async def task2(x):
+    x * 3
+
+result = 0
+for i in range(2_000):
+    result = result + 1
+
+print(result)""",
+    runs=3
+)
+
+# ============================================================================
+# OPERATOR OPTIMIZATIONS
+# ============================================================================
+
+benchmark(
+    "Bitwise Operations (100K iterations)",
+    """result = 0
+for i in range(100_000) {
+    result = (result << 1) | (i & 3)
+    result = result ^ 0xFF
+}
+print(result)""",
+    """result = 0
+for i in range(100_000):
+    result = (result << 1) | (i & 3)
+    result = result ^ 0xFF
+
+print(result)""",
+    runs=3
+)
+
+benchmark(
+    "Power Operations (50K iterations)",
+    """result = 1
+for i in range(50_000) {
+    result = result * 2
+    if result > 1_000_000 {
+        result = result // 100
+    }
+}
+print(result)""",
+    """result = 1
+for i in range(50_000):
+    result = result * 2
+    if result > 1_000_000:
+        result = result // 100
+
+print(result)""",
+    runs=3
+)
+
+benchmark(
+    "Boolean Logic Operations (100K iterations)",
+    """count = 0
+for i in range(100_000) {
+    if (i % 2 == 0) and (i % 3 == 0) {
+        count = count + 1
+    }
+    if (i % 5 == 0) or (i % 7 == 0) {
+        count = count + 1
+    }
 }
 print(count)""",
     """count = 0
-for i in range(50_000):
-    if 0 < i < 25_000:
+for i in range(100_000):
+    if (i % 2 == 0) and (i % 3 == 0):
         count = count + 1
-    if i >= 10 and i <= 30_000:
+    if (i % 5 == 0) or (i % 7 == 0):
         count = count + 1
 
 print(count)""",
+    runs=3
 )
 
-
 # ============================================================================
-# OPERATOR PRECEDENCE (Parser Hot Path)
+# DICTIONARY OPERATIONS
 # ============================================================================
 
 benchmark(
-    "Complex Expressions (25K iterations)",
+    "Comparison Operations (100K iterations)",
     """result = 0
-for i in range(25_000) {
-    result = result + i * 2 ** 3 - i // 2 + i % 3
+for i in range(100_000) {
+    if i > 50 {
+        result = result + i
+    }
+    if i < 30_000 {
+        result = result - 1
+    }
 }
 print(result)""",
     """result = 0
-for i in range(25_000):
-    result = result + i * 2 ** 3 - i // 2 + i % 3
+for i in range(100_000):
+    if i > 50:
+        result = result + i
+    if i < 30_000:
+        result = result - 1
 
 print(result)""",
+    runs=3
 )
 
-
 # ============================================================================
-# PIPELINE OPERATORS (Unique to Ekilang)
+# FUNCTION CALLS
 # ============================================================================
 
 benchmark(
-    "Pipeline Operators (10K iterations)",
-    """fn double(x) { x * 2 }
-fn add_ten(x) { x + 10 }
-fn square(x) { x * x }
-
-results = []
-for i in range(10_000) {
-    result = i |> double |> add_ten |> square
-    results.append(result)
+    "Function Calls (10K iterations)",
+    """fn add(a, b) {
+    return a + b
 }
-print(sum(results))""",
-    """def double(x):
-    return x * 2
-
-def add_ten(x):
-    return x + 10
-
-def square(x):
-    return x * x
-
-results = []
-for i in range(10_000):
-    result = square(add_ten(double(i)))
-    results.append(result)
-
-print(sum(results))""",
-)
-
-
-# ============================================================================
-# LAMBDA EXPRESSIONS & CLOSURES
-# ============================================================================
-
-benchmark(
-    "Lambda with Closures (20K iterations)",
-    """fn make_adder(n) {
-    (x) => x + n
-}
-
-add5 = make_adder(5)
-add10 = make_adder(10)
 
 result = 0
-for i in range(20_000) {
-    result = result + add5(i) + add10(i)
+for i in range(10_000) {
+    result = add(result, i)
 }
 print(result)""",
-    """def make_adder(n):
-    return lambda x: x + n
-
-add5 = make_adder(5)
-add10 = make_adder(10)
+    """def add(a, b):
+    return a + b
 
 result = 0
-for i in range(20_000):
-    result = result + add5(i) + add10(i)
-
-print(result)""",
-)
-
-
-# ============================================================================
-# MATCH STATEMENTS (Pattern Matching)
-# ============================================================================
-
-benchmark(
-    "Match Pattern Matching (10K iterations)",
-    """fn classify(n) {
-    match n % 4 {
-        0 => {
-            "divisible by 4"
-        }
-        1 => {
-            "remainder 1"
-        }
-        2 => {
-            "remainder 2"
-        }
-        _ => {
-            "remainder 3"
-        }
-    }
-}
-
-results = []
-for i in range(10_000) {
-    results.append(classify(i))
-}
-print(len(results))""",
-    """def classify(n):
-    match n % 4:
-        case 0:
-            return "divisible by 4"
-        case 1:
-            return "remainder 1"
-        case 2:
-            return "remainder 2"
-        case _:
-            return "remainder 3"
-
-results = []
 for i in range(10_000):
-    results.append(classify(i))
-
-print(len(results))""",
-)
-
-
-# ============================================================================
-# CLASS INSTANTIATION & METHOD CALLS
-# ============================================================================
-
-benchmark(
-    "Class Methods (5K objects)",
-    """class Counter {
-    fn __init__(self, start) {
-        self.value = start
-    }
-    
-    fn increment(self) {
-        self.value += 1
-        self.value
-    }
-    
-    fn get(self) {
-        self.value
-    }
-}
-
-counters = [Counter(i) for i in range(5_000)]
-for c in counters {
-    c.increment()
-    c.increment()
-}
-total = sum([c.get() for c in counters])
-print(total)""",
-    """class Counter:
-    def __init__(self, start):
-        self.value = start
-    
-    def increment(self):
-        self.value += 1
-        return self.value
-    
-    def get(self):
-        return self.value
-
-counters = [Counter(i) for i in range(5_000)]
-for c in counters:
-    c.increment()
-    c.increment()
-
-total = sum([c.get() for c in counters])
-print(total)""",
-)
-
-
-# ============================================================================
-# UNARY OPERATORS
-# ============================================================================
-
-benchmark(
-    "Unary Operations (50K iterations)",
-    """result = 0
-for i in range(1, 50_000) {
-    result = result + (-i)
-    result = result + (~i & 0xFFFF)
-}
-print(result)""",
-    """result = 0
-for i in range(1, 50_000):
-    result = result + (-i)
-    result = result + (~i & 0xFFFF)
+    result = add(result, i)
 
 print(result)""",
+    runs=3
 )
 
-
 # ============================================================================
-# WALRUS OPERATOR (Named Expressions)
+# STRING OPERATIONS
 # ============================================================================
 
 benchmark(
-    "Walrus Operator (25K iterations)",
-    """results = []
-for i in range(25_000) {
-    if (x := i * 2) > 10_000 {
-        results.append(x)
-    }
-}
-print(len(results))""",
-    """results = []
-for i in range(25_000):
-    if (x := i * 2) > 10_000:
-        results.append(x)
-
-print(len(results))""",
-)
-
-
-# ============================================================================
-# DECORATOR PERFORMANCE
-# ============================================================================
-
-benchmark(
-    "Decorated Functions (10K calls)",
-    """fn timing_decorator(func) {
-    fn wrapper(*args, **kwargs) {
-        func(*args, **kwargs)
-    }
-    wrapper
-}
-
-@timing_decorator
-fn compute(x) {
-    x * x
-}
-
+    "String Concatenation (10K iterations)",
+    """result = ""
 for i in range(10_000) {
-    compute(i)
+    result = result + str(i)
 }
-print("done")""",
-    """def timing_decorator(func):
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper
-
-@timing_decorator
-def compute(x):
-    return x * x
-
+print(len(result))""",
+    """result = ""
 for i in range(10_000):
-    compute(i)
+    result = result + str(i)
 
-print("done")""",
+print(len(result))""",
+    runs=3
 )
 
+# ============================================================================
+# DICTIONARY OPERATIONS
+# ============================================================================
+
+benchmark(
+    "Dictionary Operations (5K iterations)",
+    """data = dict()
+for i in range(5_000) {
+    key = f"key_{i}"
+    data[key] = i * 2
+}
+print(len(data))""",
+    """data = {}
+for i in range(5_000):
+    key = f"key_{i}"
+    data[key] = i * 2
+
+print(len(data))""",
+    runs=3
+)
+
+# ============================================================================
+# LIST COMPREHENSION
+# ============================================================================
+
+benchmark(
+    "List Comprehension (10K iterations)",
+    """items = [x * x for x in range(10_000)]
+print(len(items))""",
+    """items = [x * x for x in range(10_000)]
+print(len(items))""",
+    runs=3
+)
+
+# ============================================================================
+# LAMBDA/CLOSURE
+# ============================================================================
+
+benchmark(
+    "Lambda Functions (5K iterations)",
+    """double = fn(x) { x * 2 }
+result = 0
+for i in range(5_000) {
+    result = result + double(i)
+}
+print(result)""",
+    """double = lambda x: x * 2
+result = 0
+for i in range(5_000):
+    result = result + double(i)
+
+print(result)""",
+    runs=3
+)
+
+# ============================================================================
+# NESTED LOOPS
+# ============================================================================
+
+benchmark(
+    "Nested Loops (100x100)",
+    """total = 0
+for i in range(100) {
+    for j in range(100) {
+        total = total + i * j
+    }
+}
+print(total)""",
+    """total = 0
+for i in range(100):
+    for j in range(100):
+        total = total + i * j
+
+print(total)""",
+    runs=3
+)
+
+# ============================================================================
+# TUPLE OPERATIONS
+# ============================================================================
+
+benchmark(
+    "Tuple Operations (5K iterations)",
+    """tuples = []
+for i in range(5_000) {
+    t = (i, i+1, i+2)
+    tuples.append(t)
+}
+print(len(tuples))""",
+    """tuples = []
+for i in range(5_000):
+    t = (i, i+1, i+2)
+    tuples.append(t)
+
+print(len(tuples))""",
+    runs=3
+)
+
+# ============================================================================
+# RECURSION
+# ============================================================================
+
+benchmark(
+    "Recursion (fibonacci up to 25)",
+    """fn fib(n) {
+    if n <= 1 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+result = fib(25)
+print(result)""",
+    """def fib(n):
+    if n <= 1:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+result = fib(25)
+print(result)""",
+    runs=1
+)
+
+# ============================================================================
+# TYPE CONVERSION
+# ============================================================================
+
+benchmark(
+    "Type Conversions (10K iterations)",
+    """result = 0
+for i in range(10_000) {
+    s = str(i)
+    n = int(s)
+    result = result + n
+}
+print(result)""",
+    """result = 0
+for i in range(10_000):
+    s = str(i)
+    n = int(s)
+    result = result + n
+
+print(result)""",
+    runs=3
+)
+
+# ============================================================================
+# F-STRING FORMATTING
+# ============================================================================
+
+benchmark(
+    "F-String Formatting (5K iterations)",
+    """result = ""
+for i in range(5_000) {
+    s = f"Value: {i}, Double: {i*2}"
+    result = result + s
+}
+print(len(result))""",
+    """result = ""
+for i in range(5_000):
+    s = f"Value: {i}, Double: {i*2}"
+    result = result + s
+
+print(len(result))""",
+    runs=3
+)
 
 print("\n" + "=" * 60)
 print("Enhanced Benchmark Complete!")
