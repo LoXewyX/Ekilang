@@ -42,18 +42,18 @@ for line in output.split("\n"):
         match = re.search(r"Benchmark: (.+)$", line)
         if match:
             current_name = match.group(1).strip()
-    elif "Ekilang:" in line and "error" not in line.lower():
-        # Extract time from line like "Ekilang: 34.138ms (avg of 3 runs)"
+    elif "Ekilang:" in line and "compiled code only" not in line and "error" not in line.lower():
+        # Extract time from line like "  Ekilang: 27.553ms (avg of 3 runs)"
         match = re.search(r"(\d+\.\d+)ms", line)
         if match:
             current_eki = float(match.group(1))
-    elif "Python:" in line:
-        # Extract time from line like "Python:  29.300ms (avg of 3 runs)"
+    elif "Python:" in line and "execution" not in line.lower():
+        # Extract time from line like "  Python:  18.555ms (avg of 3 runs)"
         match = re.search(r"(\d+\.\d+)ms", line)
         if match:
             current_py = float(match.group(1))
     elif "Ratio:" in line:
-        # Extract ratio and direction from line like "Ratio:   1.17x slower"
+        # Extract ratio and direction from line like "  Ratio:   1.48x slower"
         ratio_match = re.search(r"(\d+\.\d+)x", line)
         is_faster: bool = "faster" in line.lower()
         if ratio_match:
@@ -75,11 +75,11 @@ for line in output.split("\n"):
                 current_ratio = None
 
 # Print summary
-print("\n" + "=" * 80)
-print("ENHANCED BENCHMARK SUMMARY - PARSER & RUNTIME OPTIMIZATIONS")
-print("=" * 80)
-print(f"\n{'Benchmark':<45} {'Ekilang':<12} {'Python':<12} {'Result':<15}")
-print("-" * 80)
+print("\n" + "=" * 100)
+print("EKILANG BENCHMARK RESULTS - EXECUTION TIME")
+print("=" * 100)
+print(f"{'Benchmark':<45} {'Ekilang':<15} {'Python':<15} {'Performance':<20}")
+print("-" * 100)
 
 total_eki: float = 0
 total_py: float = 0
@@ -100,50 +100,51 @@ for b in benchmarks:
 
 # Print by category
 if async_benchmarks:
-    print("\nASYNC/AWAIT OPERATIONS:")
-    print("-" * 80)
+    print("\n  ASYNC/AWAIT OPERATIONS:")
+    print("-" * 100)
     for b in async_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        result_str: str = f"{b['ratio']:.2f}x {'FASTER' if b['faster'] else 'SLOWER'}"
-        print(f"{b['name']:<45} {b['eki']:<12.2f}ms {b['py']:<12.2f}ms {result_str:<15}")
+        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 if operator_benchmarks:
-    print("\nOPERATOR OPTIMIZATIONS:")
-    print("-" * 80)
+    print("\n  OPERATOR OPTIMIZATIONS:")
+    print("-" * 100)
     for b in operator_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        result_str: str = f"{b['ratio']:.2f}x {'FASTER' if b['faster'] else 'SLOWER'}"
-        print(f"{b['name']:<45} {b['eki']:<12.2f}ms {b['py']:<12.2f}ms {result_str:<15}")
+        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 if feature_benchmarks:
-    print("\nLANGUAGE FEATURES:")
-    print("-" * 80)
+    print("\n  LANGUAGE FEATURES & OPERATIONS:")
+    print("-" * 100)
     for b in feature_benchmarks:
         total_eki += b["eki"]
         total_py += b["py"]
         count += 1
-        result_str: str = f"{b['ratio']:.2f}x {'FASTER' if b['faster'] else 'SLOWER'}"
-        print(f"{b['name']:<45} {b['eki']:<12.2f}ms {b['py']:<12.2f}ms {result_str:<15}")
+        perf_str: str = f"{'↑ ' if b['faster'] else '↓ '}{b['ratio']:.2f}x {'faster' if b['faster'] else 'slower'}"
+        print(f"{b['name']:<45} {b['eki']:<15.3f}ms {b['py']:<15.3f}ms {perf_str:<20}")
 
 avg_eki: float = 0
 avg_py: float = 0
 avg_ratio: float = 0
 
 if count > 0:
-    print("-" * 80)
+    print("-" * 100)
     avg_eki = total_eki / count
     avg_py = total_py / count
     avg_ratio = avg_eki / avg_py
     faster: str = "FASTER" if avg_ratio < 1 else "SLOWER"
+    perf_str: str = f"{'↑ ' if avg_ratio < 1 else '↓ '}{avg_ratio:.2f}x {faster}"
     print(
-        f"{'AVERAGE':<45} {avg_eki:<12.2f}ms {avg_py:<12.2f}ms {avg_ratio:.2f}x {faster:<10}"
+        f"{'AVERAGE':<45} {avg_eki:<15.3f}ms {avg_py:<15.3f}ms {perf_str:<20}"
     )
 
-print("=" * 80)
+print("=" * 100)
 
 # Show statistics
 faster_count: int = sum(1 for b in benchmarks if b["faster"])

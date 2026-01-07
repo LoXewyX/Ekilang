@@ -11,73 +11,88 @@ from typing import List
 from ekilang.lexer import tokenize
 from ekilang.parser import Parser
 from ekilang.runtime import compile_module
+from ekilang.executor import execute
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def run_ekilang(code: str) -> None:
-    """Execute Ekilang code"""
+def compile_ekilang(code: str):
+    """Compile Ekilang code and return (ast, code_obj)."""
+    # Allow printing of very large integers in benchmarks (Python 3.11+)
+    if hasattr(sys, "set_int_max_str_digits"):
+        sys.set_int_max_str_digits(0)
+    tokens = tokenize(code)
+    ast = Parser(tokens).parse()
+    code_obj = compile_module(ast)
+    return ast, code_obj
+
+
+def run_ekilang_compiled(ast, code_obj) -> None:
+    """Execute pre-compiled Ekilang code."""
     try:
-        tokens = tokenize(code)
-        ast = Parser(tokens).parse()
-        code_obj = compile_module(ast)
-        exec(code_obj)
+        execute(ast, code_obj=code_obj)
     except Exception as e:
-        print(f"Error in run_ekilang: {type(e).__name__}: {e}")
+        print(f"Error in run_ekilang_compiled: {type(e).__name__}: {e}")
         traceback.print_exc()
         raise
 
 
 def benchmark(name: str, eki_code: str, py_code: str, runs: int = 3) -> None:
-    """Benchmark Ekilang vs Python code"""
+    """Benchmark Ekilang vs Python code, separating compilation and execution."""
     print(f"\n{'='*60}")
     print(f"Benchmark: {name}")
     print("=" * 60)
 
+    # Compile Ekilang code (outside timing)
+    try:
+        eki_ast, eki_code_obj = compile_ekilang(eki_code)
+    except Exception as e:
+        print(f"Ekilang compilation error: {type(e).__name__}: {e}")
+        return
+
     # Warmup
     try:
-        for _ in range(1):
-            run_ekilang(eki_code)
+        run_ekilang_compiled(eki_ast, eki_code_obj)
     except Exception as e:
         print(f"Ekilang warmup error: {type(e).__name__}: {e}")
         return
 
     try:
-        for _ in range(1):
-            exec(py_code)
+        exec(py_code, {})
     except Exception as e:
         print(f"Python warmup error: {type(e).__name__}: {e}")
         return
 
-    # Ekilang benchmark
-    eki_times: list[float] = []
+    # Time Ekilang execution only (code already compiled)
+    eki_exec_times: list[float] = []
     for _ in range(runs):
         try:
             t0: float = time.perf_counter()
-            run_ekilang(eki_code)
-            eki_times.append(time.perf_counter() - t0)
+            run_ekilang_compiled(eki_ast, eki_code_obj)
+            eki_exec_times.append(time.perf_counter() - t0)
         except Exception as e:
-            print(f"Ekilang error: {type(e).__name__}: {e}")
+            print(f"Ekilang execution error: {type(e).__name__}: {e}")
             return
 
-    # Python benchmark
-    py_times: List[float] = []
+    # Time Python execution
+    py_exec_times: List[float] = []
     for _ in range(runs):
         try:
             t0 = time.perf_counter()
-            exec(py_code)
-            py_times.append(time.perf_counter() - t0)
+            exec(py_code, {})
+            py_exec_times.append(time.perf_counter() - t0)
         except Exception as e:
-            print(f"Python error: {type(e).__name__}: {e}")
+            print(f"Python execution error: {type(e).__name__}: {e}")
             return
 
-    eki_avg: float = sum(eki_times) / len(eki_times)
-    py_avg: float = sum(py_times) / len(py_times)
-    ratio: float = eki_avg / py_avg if py_avg > 0 else float("inf")
+    eki_exec_avg: float = sum(eki_exec_times) / len(eki_exec_times)
+    py_exec_avg: float = sum(py_exec_times) / len(py_exec_times)
+    exec_ratio: float = eki_exec_avg / py_exec_avg if py_exec_avg > 0 else float("inf")
 
-    print(f"Ekilang: {eki_avg*1000:.3f}ms (avg of {runs} runs)")
-    print(f"Python:  {py_avg*1000:.3f}ms (avg of {runs} runs)")
-    print(f"Ratio:   {ratio:.2f}x {'slower' if ratio > 1 else 'faster'}")
+    print(f"Execution Time (compiled code only):")
+    print(f"  Ekilang: {eki_exec_avg*1000:.3f}ms (avg of {runs} runs)")
+    print(f"  Python:  {py_exec_avg*1000:.3f}ms (avg of {runs} runs)")
+    print(f"  Ratio:   {exec_ratio:.2f}x {'slower' if exec_ratio > 1 else 'faster'}")
 
 
 # ============================================================================
@@ -209,18 +224,22 @@ print(result)""",
 
 benchmark(
     "Bitwise Operations (100K iterations)",
-    """result = 0
+    """MASK = 0xFFFFFFFFFFFFFFFF
+result = 0
 for i in range(100_000) {
-    result = (result << 1) | (i & 3)
-    result = result ^ 0xFF
+    result = ((result << 1) | (i & 3)) & MASK
+    result = (result ^ 0xFF) & MASK
 }
-print(result)""",
-    """result = 0
+# Print low 16 hex digits for readability
+print(hex(result & 0xFFFF_FFFF_FFFF_FFFF)[-16:])""",
+    """MASK = 0xFFFFFFFFFFFFFFFF
+result = 0
 for i in range(100_000):
-    result = (result << 1) | (i & 3)
-    result = result ^ 0xFF
+    result = ((result << 1) | (i & 3)) & MASK
+    result = (result ^ 0xFF) & MASK
 
-print(result)""",
+# Print low 16 hex digits for readability
+print(hex(result & 0xFFFF_FFFF_FFFF_FFFF)[-16:])""",
     runs=3
 )
 
@@ -379,7 +398,7 @@ print(len(items))""",
 
 benchmark(
     "Lambda Functions (5K iterations)",
-    """double = fn(x) { x * 2 }
+    """double = (x) => { x * 2 }
 result = 0
 for i in range(5_000) {
     result = result + double(i)

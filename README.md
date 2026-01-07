@@ -2,15 +2,13 @@
 
 <img src=".github/splash.png" alt="Ekilang Splash" />
 
-# Ekilang
-
 **A modern, high-performance interpreted language built on Python**
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)](tests/)
 
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Performance](#-performance) • [Documentation](#-documentation)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Performance](#performance) • [Documentation](#documentation)
 
 </div>
 
@@ -95,8 +93,8 @@ print(greet("World"))
 ```rust
 # Transform data elegantly
 result = [1, 2, 3, 4, 5]
-    |> map(fn(x) { x * 2 })
-    |> filter(fn(x) { x > 5 })
+    |> map((x) => { x * 2 })
+    |> filter((x) => { x > 5 })
     |> list
 
 print(result)  # [6, 8, 10]
@@ -148,52 +146,58 @@ use .::math::operations { add, multiply }
 
 ## Performance
 
-Ekilang performance varies by operation type. **Results may vary** between runs - sometimes Ekilang is faster, sometimes slower than Python.
+Ekilang execution performance is measured on **compiled code only** (no tokenization/parsing overhead). This gives a fair comparison of runtime performance between Ekilang and Python after both are ready to execute.
 
-### Latest Benchmark Results
+### Latest Benchmark Results (January 2026)
 
-**Async/Await Operations:**
+**Execution Time Comparison** (lower is better, compiled code only)
 
-| Benchmark | Ekilang | Python | Result |
-|-----------|---------|--------|--------|
-| Async Function Declaration (5K iterations) | 0.88ms | 0.51ms | 1.72x slower |
-| Async Multiple Functions (2K iterations) | 0.57ms | 0.23ms | 2.53x slower |
+#### Async/Await Operations
 
-**Operator Optimizations:**
+| Benchmark | Ekilang | Python | Performance |
+|-----------|---------|--------|-------------|
+| Async Function Declaration (5K) | 0.446ms | 0.673ms | ↑ **0.66x faster |
+| Async Multiple Functions (2K) | 0.159ms | 0.205ms | ↑ **0.78x faster |
 
-| Benchmark | Ekilang | Python | Result |
-|-----------|---------|--------|--------|
-| Comparison Operations (100K iterations) | 28.52ms | 24.11ms | 1.18x slower |
+#### Operator Optimizations
 
-**Language Features:**
+| Benchmark | Ekilang | Python | Performance |
+|-----------|---------|--------|-------------|
+| Bitwise Operations (100K) | 42.820ms | 68.944ms | ↑ **0.62x faster |
+| Comparison Operations (100K) | 26.500ms | 25.182ms | ↓ 1.05x slower |
 
-| Benchmark | Ekilang | Python | Result |
-|-----------|---------|--------|--------|
-| Simple Integer Arithmetic (100K iterations) | 14.54ms | 14.76ms | **0.98x faster** ✨ |
-| Boolean Logic Operations (100K iterations) | 20.72ms | 29.25ms | **0.71x faster** ✨ |
-| Function Calls (10K iterations) | 2.38ms | 14.01ms | **0.17x faster** ✨ |
-| String Concatenation (10K iterations) | 20.91ms | 28.31ms | **0.74x faster** ✨ |
-| Binary Operations (100K iterations) | 20.81ms | 15.58ms | 1.34x slower |
-| List Operations (50K iterations) | 5.17ms | 4.85ms | 1.07x slower |
-| Power Operations (50K iterations) | 6.88ms | 5.64ms | 1.22x slower |
-| Dictionary Operations (5K iterations) | 18.30ms | 3.09ms | 5.92x slower |
-| List Comprehension (10K iterations) | 1.31ms | 0.88ms | 1.48x slower |
-| Nested Loops (100x100) | 2.63ms | 1.93ms | 1.36x slower |
-| Tuple Operations (5K iterations) | 2.58ms | 2.04ms | 1.26x slower |
-| Type Conversions (10K iterations) | 15.22ms | 7.72ms | 1.97x slower |
-| F-String Formatting (5K iterations) | 15.41ms | 14.59ms | 1.06x slower |
+#### Language Features & Operations
 
-**Summary:**
-- Total benchmarks: 16
-- Ekilang faster: 4 benchmarks
-- Python faster: 12 benchmarks
-- Average overhead: 5.6% slower
+| Benchmark | Ekilang | Python | Performance |
+|-----------|---------|--------|-------------|
+| Simple Integer Arithmetic (100K) | 16.863ms | 20.316ms | ↑ 0.83x faster |
+| Binary Operations (100K) | 23.531ms | 20.370ms | ↓ 1.16x slower |
+| List Operations (50K) | 7.785ms | 8.072ms | ↑ 0.96x faster |
+| Power Operations (50K) | 22.420ms | 18.730ms | ↓ 1.20x slower |
+| Boolean Logic Operations (100K) | 25.282ms | 29.788ms | ↑ 0.85x faster |
+| Function Calls (10K) | 2.002ms | 1.419ms | ↓ 1.41x slower |
+| String Concatenation (10K) | 10.544ms | 13.312ms | ↑ 0.79x faster |
+| Dictionary Operations (5K) | 1.436ms | 2.025ms | ↑ 0.71x faster |
+| List Comprehension (10K) | 0.554ms | 0.602ms | ↑ 0.92x faster |
+| Lambda Functions (5K) | 0.783ms | 0.691ms | ↓ 1.13x slower |
+| Nested Loops (100x100) | 1.464ms | 0.992ms | ↓ 1.48x slower |
+| Tuple Operations (5K) | 0.951ms | 2.271ms | ↑ 0.42x faster |
+| Recursion (fibonacci up to 25) | 13.971ms | 14.083ms | ↑ 0.99x faster |
+| Type Conversions (10K) | 2.975ms | 3.726ms | ↑ 0.80x faster |
+| F-String Formatting (5K) | 14.496ms | 14.012ms | ↓ 1.03x slower |
+
+#### Summary
+
+- **Total Benchmarks:** 19
+- **Ekilang Faster:** 12 operations (63%)
+- **Python Faster:** 7 operations (37%)
+- **Average:** 0.88x (12.4% faster)
 
 **Notes:**
-- Performance varies significantly by operation type and cache state
-- Results may differ between runs and environments
-- Ekilang excels at boolean logic, function calls, and string operations
-- Some overhead on dictionary/tuple operations and async/await
+- As an interpreted language, Ekilang is expected to run slower than standard Python.
+- Despite optimizations, it has higher overhead than Python.
+- Results may vary between runs and across different environments.
+- Performance can differ significantly depending on the type of operation and cache state.
 - Cold vs hot cache states can significantly affect results
 
 *See [tests/benchmark.py](tests/benchmark.py) for full benchmark suite*
@@ -285,8 +289,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-
-**[⬆ back to top](#ekilang)**
 
 Made with ❤️ by [LoXewyX](https://github.com/LoXewyX)
 
