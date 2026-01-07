@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)](tests/)
 
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Performance](#-performance) • [Documentation](#-documentation)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Performance](#performance) • [Documentation](#documentation)
 
 </div>
 
