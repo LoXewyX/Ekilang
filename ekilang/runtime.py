@@ -45,6 +45,7 @@ from .types import (
     BStr,
     Bool,
     NoneLit,
+    Ellipsis,
     ListLit,
     DictLit,
     TupleLit,
@@ -172,6 +173,8 @@ class CodeGen:
             return ast.Constant(value=bool_node.value)
         if node_type is NoneLit:
             return ast.Constant(None)
+        if node_type is Ellipsis:
+            return ast.Constant(...)
         if node_type is BStr:
             # Convert byte string to bytes
             bstr_node = cast(BStr, node)

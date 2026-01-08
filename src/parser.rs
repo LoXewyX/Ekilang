@@ -114,6 +114,7 @@ pub fn is_statement_keyword(kw: &str) -> bool {
             | "if"
             | "match"
             | "while"
+            | "loop"
             | "try"
             | "let"
     )
@@ -284,7 +285,8 @@ pub fn classify_keyword(kw: &str) -> u8 {
         "class" | "fn" | "async" | "let" => 1,
 
         // Control flow
-        "if" | "elif" | "else" | "while" | "for" | "match" | "try" | "except" | "finally" => 2,
+        "if" | "elif" | "else" | "while" | "loop" | "for" | "match" | "try" | "except"
+        | "finally" => 2,
 
         // Simple statements
         "break" | "continue" | "return" | "yield" | "use" => 3,

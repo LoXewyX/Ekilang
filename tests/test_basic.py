@@ -317,6 +317,34 @@ for i in r {
     assert ns["arr"] == [1, 2, 3, 4, 5]
 
 
+def test_range_inclusive_from_zero():
+    """Test inclusive range with no start value (defaults to 0)"""
+    ns = run(
+        """
+r = ..=3
+arr = []
+for i in r {
+  arr = arr + [i]
+}
+"""
+    )
+    assert ns["arr"] == [0, 1, 2, 3]
+
+
+def test_range_exclusive_from_zero():
+    """Test exclusive range with no start value (defaults to 0)"""
+    ns = run(
+        """
+r = ..5
+arr = []
+for i in r {
+  arr = arr + [i]
+}
+"""
+    )
+    assert ns["arr"] == [0, 1, 2, 3, 4]
+
+
 def test_list_comprehension_simple():
     """Test simple list comprehension"""
     ns = run(

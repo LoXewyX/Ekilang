@@ -286,6 +286,11 @@ class NoneLit:
 
 
 @dataclass
+class Ellipsis:
+    """Ellipsis literal (...)."""
+
+
+@dataclass
 class Assign:
     """Assignment statement."""
 
@@ -532,6 +537,7 @@ ExprNode = (
     | BStr
     | Bool
     | NoneLit
+    | Ellipsis
     | ListLit
     | DictLit
     | Lambda

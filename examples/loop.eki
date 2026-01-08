@@ -1,0 +1,104 @@
+# Loop keyword - infinite loop (while True)
+# Use 'loop' for infinite loops instead of 'while true'
+
+# Basic infinite loop with break
+print("Countdown:")
+counter = 5
+loop {
+    print(counter)
+    counter = counter - 1
+    if counter <= 0 {
+        break
+    }
+}
+print("Liftoff!")
+
+# Loop with continue
+print("\nOdd numbers from 1 to 10:")
+i = 0
+loop {
+    i = i + 1
+    if i > 10 {
+        break
+    }
+    if i % 2 == 0 {
+        continue
+    }
+    print(i)
+}
+
+# Nested loops
+print("\nMultiplication table (3x3):")
+row = 0
+loop {
+    row = row + 1
+    if row > 3 {
+        break
+    }
+    col = 0
+    loop {
+        col = col + 1
+        if col > 3 {
+            break
+        }
+        print(f"{row} x {col} = {row * col}")
+    }
+}
+
+# Loop as game-like pattern
+print("\nNumber guessing simulation:")
+secret = 7
+guess = 1
+attempts = 0
+loop {
+    attempts = attempts + 1
+    print(f"Attempt {attempts}: guessing {guess}")
+    
+    if guess == secret {
+        print(f"Found it in {attempts} attempts!")
+        break
+    }
+    
+    if guess < secret {
+        print("Too low")
+        guess = guess + 2
+    } else {
+        print("Too high")
+        guess = guess - 1
+    }
+    
+    if attempts > 10 {
+        print("Too many attempts!")
+        break
+    }
+}
+
+# Loop with accumulator pattern
+print("\nSum of first 10 numbers:")
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+index = 0
+total = 0
+loop {
+    if index >= len(numbers) {
+        break
+    }
+    total = total + numbers[index]
+    index = index + 1
+}
+print(f"Total: {total}")
+
+# Infinite menu simulation (breaks on exit)
+print("\nMenu simulation:")
+selections = ["list", "add", "delete", "exit"]
+current = 0
+loop {
+    choice = selections[current]
+    print(f"Selected: {choice}")
+    
+    if choice == "exit" {
+        print("Goodbye!")
+        break
+    }
+    
+    current = current + 1
+}

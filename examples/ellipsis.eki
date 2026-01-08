@@ -1,0 +1,62 @@
+# Ellipsis (...) Examples in Ekilang
+
+# 1. Basic ellipsis literal
+print("Basic ellipsis:")
+print(...)
+print()
+
+# 2. Ellipsis as a placeholder in function stubs
+print("Function stub with ellipsis:")
+fn not_implemented_yet() {
+    ...  # Placeholder for future implementation
+}
+
+not_implemented_yet()
+print("Function with ellipsis placeholder ran")
+print()
+
+# 3. Ellipsis in data structures
+print("Ellipsis in collections:")
+my_list = [1, 2, ..., 3, 4]
+print(f"List with ellipsis: {my_list}")
+
+my_tuple = (10, ..., 20)
+print(f"Tuple with ellipsis: {my_tuple}")
+
+my_dict = {...: "unknown", "status": ...}
+print(f"Dict with ellipsis: {my_dict}")
+print()
+
+# 4. Ellipsis identity
+print("Ellipsis identity:")
+x = ...
+y = ...
+print(f"x is y: {x is y}")  # True - singleton object
+print(f"x == y: {x == y}")  # True
+print()
+
+# 5. Type checking with ellipsis
+print("Type information:")
+ellipsis_var = ...
+print(f"Type: {type(ellipsis_var)}")
+print(f"Name: {type(ellipsis_var).__name__}")
+print()
+
+# 6. Ellipsis as sentinel value
+print("Using ellipsis as sentinel:")
+fn process(value = ...) {
+    if value is ...:
+        print("No value provided")
+    else:
+        print(f"Processing: {value}")
+}
+
+process()
+process(42)
+print()
+
+# 7. Multiple ellipsis in expression
+print("Multiple ellipsis:")
+items = [..., ..., ...]
+print(f"Count: {len(items)}")
+print(f"All same: {items[0] is items[1] is items[2]}")

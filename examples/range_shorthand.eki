@@ -1,0 +1,35 @@
+# Range operators without start value (defaults to 0)
+
+# Exclusive range: ..n (0 to n-1)
+print("Exclusive range ..5:")
+for i in ..5 {
+    print(i)
+}
+
+# Inclusive range: ..=n (0 to n)
+print("\nInclusive range ..=5:")
+for i in ..=5 {
+    print(i)
+}
+
+# Using in list comprehension
+squares = [x * x for x in ..5]
+print(f"\nSquares of ..5: {squares}")
+
+# Using in a function
+fn print_countdown(n) {
+    for i in ..=n {
+        print(f"T-minus {n - i}")
+    }
+    print("Liftoff!")
+}
+
+print("\nCountdown:")
+print_countdown(3)
+
+# Compare with explicit start
+print("\nCompare:")
+print(f"..3 gives: {list(..3)}")
+print(f"0..3 gives: {list(0..3)}")
+print(f"..=3 gives: {list(..=3)}")
+print(f"0..=3 gives: {list(0..=3)}")

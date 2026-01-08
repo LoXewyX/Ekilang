@@ -36,6 +36,7 @@ Ekilang is a custom programming language with modern syntax that transpiles to P
 ### Advanced Language Features
 - **Async/Await**: Native Python async support with `async fn` and `await`
 - **Pattern Matching**: Match expressions for complex control flow
+- **Infinite Loops**: Use `loop` keyword for cleaner infinite loops (while True)
 - **Destructuring**: Unpack tuples, lists, and iterables in assignments
 - **Generators**: Use `yield` for lazy evaluation and iteration
 - **Comprehensions**: List, set, and dict comprehensions

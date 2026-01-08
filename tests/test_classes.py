@@ -163,3 +163,102 @@ def test_empty_class():
     """
     ns = run(code)
     assert ns["e"] is not None
+
+
+def test_staticmethod_basic():
+    """Test basic @staticmethod decorator"""
+    code = """
+    class MathUtils {
+        @staticmethod
+        fn add(a, b) {
+            return a + b
+        }
+        
+        @staticmethod
+        fn multiply(x, y) {
+            return x * y
+        }
+    }
+    
+    result1 = MathUtils.add(5, 3)
+    result2 = MathUtils.multiply(4, 7)
+    """
+    ns = run(code)
+    assert ns["result1"] == 8
+    assert ns["result2"] == 28
+
+
+def test_staticmethod_call_from_instance():
+    """Test calling staticmethod from instance"""
+    code = """
+    class Calculator {
+        @staticmethod
+        fn square(n) {
+            return n * n
+        }
+    }
+    
+    calc = Calculator()
+    result_class = Calculator.square(5)
+    result_instance = calc.square(5)
+    """
+    ns = run(code)
+    assert ns["result_class"] == 25
+    assert ns["result_instance"] == 25
+
+
+def test_staticmethod_with_regular_method():
+    """Test mixing staticmethod with regular methods"""
+    code = """
+    class Temperature {
+        fn __init__(self, celsius) {
+            self.celsius = celsius
+        }
+        
+        @staticmethod
+        fn celsius_to_fahrenheit(c) {
+            return c * 9 / 5 + 32
+        }
+        
+        fn to_fahrenheit(self) {
+            return Temperature.celsius_to_fahrenheit(self.celsius)
+        }
+    }
+    
+    temp = Temperature(100)
+    result1 = Temperature.celsius_to_fahrenheit(0)
+    result2 = temp.to_fahrenheit()
+    """
+    ns = run(code)
+    assert ns["result1"] == 32
+    assert ns["result2"] == 212
+
+
+def test_staticmethod_factory_pattern():
+    """Test staticmethod for factory pattern"""
+    code = """
+    class Point {
+        fn __init__(self, x, y) {
+            self.x = x
+            self.y = y
+        }
+        
+        @staticmethod
+        fn origin() {
+            return Point(0, 0)
+        }
+        
+        @staticmethod
+        fn from_tuple(t) {
+            return Point(t[0], t[1])
+        }
+    }
+    
+    p1 = Point.origin()
+    p2 = Point.from_tuple((3, 4))
+    """
+    ns = run(code)
+    assert ns["p1"].x == 0
+    assert ns["p1"].y == 0
+    assert ns["p2"].x == 3
+    assert ns["p2"].y == 4

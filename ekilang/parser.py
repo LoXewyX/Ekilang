@@ -46,6 +46,7 @@ from .types import (
     BStr,
     Bool,
     NoneLit,
+    Ellipsis,
     ListLit,
     DictLit,
     Lambda,
@@ -86,17 +87,11 @@ class Parser:
 
     def peek(self) -> Token:
         """Look at current token without consuming it."""
-        i = self.i
-        tokens = self.tokens
-        return tokens[i] if i < self._len else tokens[-1]
+        return self.tokens[self.i] if self.i < self._len else self.tokens[-1]
 
     def match(self, type_: str, value: Optional[str] = None) -> Token:
         """Consume and return token if it matches, otherwise raise SyntaxError."""
-        tokens = self.tokens
-        if self.i >= self._len:
-            tok = tokens[-1]
-        else:
-            tok = tokens[self.i]
+        tok = self.tokens[self.i] if self.i < self._len else self.tokens[-1]
         if tok.type != type_ or (value is not None and tok.value != value):
             raise SyntaxError(f"Expected {type_} {value or ''} at {tok.line}:{tok.col}")
         self.i += 1
@@ -111,6 +106,11 @@ class Parser:
             self.i += 1
             return tok
         return None
+
+    def peek_kw(self, value: str) -> bool:
+        """Check if current token is a keyword with given value."""
+        tok = self.peek()
+        return tok.type == "KW" and tok.value == value
 
     def parse(self) -> Module:
         """Parse token stream into Module AST."""
@@ -161,6 +161,8 @@ class Parser:
                     return self.match_stmt()
                 if tok.value == "while":
                     return self.while_stmt()
+                if tok.value == "loop":
+                    return self.loop_stmt()
                 if tok.value == "try":
                     return self.try_stmt()
 
@@ -272,7 +274,7 @@ class Parser:
             name=class_name,
             bases=bases,
             body=body,
-            decorators=decorators if decorators else None,
+            decorators=decorators,
         )
 
     def _parse_assignment_or_expr_stmt(
@@ -359,7 +361,7 @@ class Parser:
             vararg_type=vararg_type,
             kwarg=kwarg,
             kwarg_type=kwarg_type,
-            decorators=decorators if decorators else None,
+            decorators=decorators,
         )
 
     def _parse_decorators(self) -> List[ExprNode]:
@@ -491,6 +493,18 @@ class Parser:
 
         return While(test, body, orelse)
 
+    def loop_stmt(self) -> While:
+        """Parse an infinite loop (loop { ... }) as while True."""
+        self.match("KW", "loop")
+        self.match("{")
+        body: List[Statement] = []
+        while not self.accept("}"):
+            if self.accept("NL"):
+                continue
+            body.append(self.statement())
+        self.accept("NL")
+        return While(Bool(True), body, [])
+
     def try_stmt(self) -> Try:
         """Parse a try-except-finally statement."""
         self.match("KW", "try")
@@ -507,7 +521,7 @@ class Parser:
         finalbody: Optional[List[Statement]] = None
 
         # Parse except handlers
-        while self.peek().type == "KW" and self.peek().value == "except":
+        while self.peek_kw("except"):
             self.match("KW", "except")
 
             # Parse exception type (optional)
@@ -777,7 +791,7 @@ class Parser:
     def cast_expr(self) -> ExprNode:
         """Parse `as` type cast expressions."""
         node = self.ternary_expr()
-        if self.peek().type == "KW" and self.peek().value == "as":
+        if self.peek_kw("as"):
             self.match("KW", "as")
             target_type = self.parse_type()
             return Cast(value=node, target_type=target_type)
@@ -798,11 +812,10 @@ class Parser:
     def or_expr(self) -> ExprNode:
         """Parse or expression."""
         node = self.and_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "KW"
-            and tokens[self.i].value == "or"
+            and self.tokens[self.i].type == "KW"
+            and self.tokens[self.i].value == "or"
         ):
             self.i += 1
             node = BinOp(node, "or", self.and_expr())
@@ -811,11 +824,10 @@ class Parser:
     def and_expr(self) -> ExprNode:
         """Parse and expression."""
         node = self.bit_or_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "KW"
-            and tokens[self.i].value == "and"
+            and self.tokens[self.i].type == "KW"
+            and self.tokens[self.i].value == "and"
         ):
             self.i += 1
             node = BinOp(node, "and", self.bit_or_expr())
@@ -824,11 +836,10 @@ class Parser:
     def bit_or_expr(self) -> ExprNode:
         """Parse bitwise or expression."""
         node = self.bit_xor_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value == "|"
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value == "|"
         ):
             self.i += 1
             node = BinOp(node, "|", self.bit_xor_expr())
@@ -837,11 +848,10 @@ class Parser:
     def bit_xor_expr(self) -> ExprNode:
         """Parse bitwise xor expression."""
         node = self.bit_and_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value == "^"
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value == "^"
         ):
             self.i += 1
             node = BinOp(node, "^", self.bit_and_expr())
@@ -850,11 +860,10 @@ class Parser:
     def bit_and_expr(self) -> ExprNode:
         """Parse bitwise and expression."""
         node = self.cmp_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value == "&"
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value == "&"
         ):
             self.i += 1
             node = BinOp(node, "&", self.cmp_expr())
@@ -894,13 +903,12 @@ class Parser:
     def range_expr(self) -> ExprNode:
         """Parse range expression (.. or ..=)."""
         node = self.shift_expr()
-        tokens = self.tokens
         if (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value in {"..", "..="}
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value in {"..", "..="}
         ):
-            inclusive = tokens[self.i].value == "..="
+            inclusive = self.tokens[self.i].value == "..="
             self.i += 1
             return Range(start=node, end=self.shift_expr(), inclusive=inclusive)
         return node
@@ -908,13 +916,12 @@ class Parser:
     def shift_expr(self) -> ExprNode:
         """Parse bit shift expression (<<, >>)."""
         node: ExprNode = self.add_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value in {"<<", ">>"}
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value in {"<<", ">>"}
         ):
-            op = tokens[self.i].value
+            op = self.tokens[self.i].value
             self.i += 1
             node = BinOp(node, op, self.add_expr())
         return node
@@ -922,13 +929,12 @@ class Parser:
     def add_expr(self) -> ExprNode:
         """Parse addition/subtraction expression."""
         node: ExprNode = self.power_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value in {"+", "-"}
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value in {"+", "-"}
         ):
-            op = tokens[self.i].value
+            op = self.tokens[self.i].value
             self.i += 1
             node = BinOp(node, op, self.power_expr())
         return node
@@ -936,13 +942,12 @@ class Parser:
     def mul_expr(self) -> ExprNode:
         """Parse multiplication/division/modulo expression."""
         node: ExprNode = self.unary_expr()
-        tokens = self.tokens
         while (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value in {"*", "/", "//", "%"}
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value in {"*", "/", "//", "%"}
         ):
-            op = tokens[self.i].value
+            op = self.tokens[self.i].value
             self.i += 1
             node = BinOp(node, op, self.unary_expr())
         return node
@@ -950,11 +955,10 @@ class Parser:
     def power_expr(self) -> ExprNode:
         """Parse power (exponentiation) expression with right-associativity."""
         node = self.mul_expr()
-        tokens = self.tokens
         if (
             self.i < self._len
-            and tokens[self.i].type == "OP"
-            and tokens[self.i].value == "**"
+            and self.tokens[self.i].type == "OP"
+            and self.tokens[self.i].value == "**"
         ):
             self.i += 1
             node = BinOp(node, "**", self.power_expr())
@@ -962,11 +966,9 @@ class Parser:
 
     def unary_expr(self) -> ExprNode:
         """Parse unary expression (-, ~, not, await)."""
-        tokens = self.tokens
         if self.i >= self._len:
             return self.atom()
-        tok = tokens[self.i]
-        # Use Rust helper for fast unary operator checking
+        tok = self.tokens[self.i]
         if tok.type == "OP" and is_unary_op(tok.value):
             self.i += 1
             return UnaryOp(tok.value, self.unary_expr())
@@ -1162,13 +1164,13 @@ class Parser:
             self.accept("NL")
 
             # Check if this is a list comprehension
-            if self.peek().type == "KW" and self.peek().value == "for":
+            if self.peek_kw("for"):
                 self.match("KW", "for")
                 target: str = self.match("ID").value
                 self.match("KW", "in")
                 iter_expr: ExprNode = self.or_expr()
                 condition: Optional[ExprNode] = None
-                if self.peek().type == "KW" and self.peek().value == "if":
+                if self.peek_kw("if"):
                     self.match("KW", "if")
                     condition = self.or_expr()
                 self.accept("NL")
@@ -1203,13 +1205,13 @@ class Parser:
         self.accept("NL")
 
         # Check for set comprehension
-        if self.peek().type == "KW" and self.peek().value == "for":
+        if self.peek_kw("for"):
             self.match("KW", "for")
             target = self.match("ID").value
             self.match("KW", "in")
             iter_expr = self.or_expr()
             condition = None
-            if self.peek().type == "KW" and self.peek().value == "if":
+            if self.peek_kw("if"):
                 self.match("KW", "if")
                 condition = self.or_expr()
             self.accept("NL")
@@ -1227,13 +1229,13 @@ class Parser:
             self.accept("NL")
 
             # Check for dict comprehension
-            if self.peek().type == "KW" and self.peek().value == "for":
+            if self.peek_kw("for"):
                 self.match("KW", "for")
                 target = self.match("ID").value
                 self.match("KW", "in")
                 iter_expr = self.or_expr()
                 condition = None
-                if self.peek().type == "KW" and self.peek().value == "if":
+                if self.peek_kw("if"):
                     self.match("KW", "if")
                     condition = self.or_expr()
                 self.accept("NL")
@@ -1353,6 +1355,9 @@ class Parser:
         if tok.type == "KW" and tok.value == "none":
             self.i += 1
             return NoneLit()
+        if tok.type == "OP" and tok.value == "...":
+            self.i += 1
+            return Ellipsis()
         if self.accept("["):
             return self._parse_list_literal_or_comp()
         if self.accept("{"):
@@ -1374,6 +1379,11 @@ class Parser:
             return node
         if self.accept("("):
             return self._parse_paren_or_lambda()
+        # Handle range operators without start value: ..3 or ..=3
+        if tok.type == "OP" and tok.value in {"..", "..="}:
+            inclusive = tok.value == "..="
+            self.i += 1
+            return Range(start=Int(0), end=self.shift_expr(), inclusive=inclusive)
         raise SyntaxError(
             f"Unexpected token {tok.type} {tok.value} at {tok.line}:{tok.col}"
         )
@@ -1506,14 +1516,11 @@ class Parser:
 
         def parse_list(end_token: str) -> list[str] | None:
             names: list[str] = []
-            # Check if list is empty (immediate closing delimiter)
-            if self.peek().type == end_token or (
-                self.peek().type == "OP" and self.peek().value == end_token
-            ):
+            if self.peek().type == "ID":
+                names.append(self.match("ID").value)
+            else:
                 return None
-            names.append(self.match("ID").value)
-            # Accept commas (can be type "," or type "OP" with value ",")
-            while self.accept(",") or self.accept("OP", ","):
+            while self.accept(","):
                 names.append(self.match("ID").value)
             return names
 
@@ -1537,14 +1544,13 @@ class Parser:
         # Bare comma-separated
         if self.peek().type == "ID":
             names = [self.match("ID").value]
-            # Check for comma (can be type "," or type "OP" with value ",")
-            if not (self.accept(",") or self.accept("OP", ",")):
+            if not self.accept(","):
                 # single name, not an unpack pattern
                 self.i = start_i
                 return None
             while True:
                 names.append(self.match("ID").value)
-                if not (self.accept(",") or self.accept("OP", ",")):
+                if not self.accept(","):
                     break
             return names
 

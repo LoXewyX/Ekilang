@@ -306,7 +306,10 @@ impl Lexer {
 
         // Try 3-character operators first
         if let Some(three) = self.peek_string(3) {
-            if matches!(three.as_str(), "..=" | "<<=" | ">>=" | "**=" | "//=") {
+            if matches!(
+                three.as_str(),
+                "..." | "..=" | "<<=" | ">>=" | "**=" | "//="
+            ) {
                 op = three;
                 for _ in 0..3 {
                     self.advance();
@@ -549,27 +552,50 @@ impl Lexer {
                     self.advance();
                 }
                 Some('.') => {
-                    // Check for .. or ..=
-                    if self.peek(1) == Some('.') {
-                        if self.peek(2) == Some('=') {
-                            tokens.push(Token::new_with_type(
-                                "OP",
-                                "..=".to_string(),
-                                self.line,
-                                self.col,
-                            ));
-                            self.advance();
-                            self.advance();
-                            self.advance();
-                        } else {
-                            tokens.push(Token::new_with_type(
-                                "OP",
-                                "..".to_string(),
-                                self.line,
-                                self.col,
-                            ));
-                            self.advance();
-                            self.advance();
+                    // Check for ..., ..=, or .. using a single lookahead string
+                    if let Some(three) = self.peek_string(3) {
+                        match three.as_str() {
+                            "..." => {
+                                tokens.push(Token::new_with_type(
+                                    "OP",
+                                    "...".to_string(),
+                                    self.line,
+                                    self.col,
+                                ));
+                                self.advance();
+                                self.advance();
+                                self.advance();
+                            }
+                            "..=" => {
+                                tokens.push(Token::new_with_type(
+                                    "OP",
+                                    "..=".to_string(),
+                                    self.line,
+                                    self.col,
+                                ));
+                                self.advance();
+                                self.advance();
+                                self.advance();
+                            }
+                            _ if three.starts_with("..") => {
+                                tokens.push(Token::new_with_type(
+                                    "OP",
+                                    "..".to_string(),
+                                    self.line,
+                                    self.col,
+                                ));
+                                self.advance();
+                                self.advance();
+                            }
+                            _ => {
+                                tokens.push(Token::new(
+                                    TokenType::Dot,
+                                    ".".to_string(),
+                                    self.line,
+                                    self.col,
+                                ));
+                                self.advance();
+                            }
                         }
                     } else {
                         tokens.push(Token::new(

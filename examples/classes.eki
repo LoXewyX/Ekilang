@@ -143,3 +143,69 @@ class Book {
 book = Book("1984", "George Orwell")
 book_str = str(book)
 print(book_str)
+
+# Static methods - called on class, not instance
+class MathUtils {
+    @staticmethod
+    fn add(a, b) {
+        return a + b
+    }
+    
+    @staticmethod
+    fn multiply(x, y) {
+        return x * y
+    }
+}
+
+print(t"\nStatic methods:")
+print(t"5 + 3 = {MathUtils.add(5, 3)}")
+print(t"4 * 7 = {MathUtils.multiply(4, 7)}")
+
+# Factory pattern with static methods
+class PointFactory {
+    fn __init__(self, x, y) {
+        self.x = x
+        self.y = y
+    }
+    
+    @staticmethod
+    fn origin() {
+        return PointFactory(0, 0)
+    }
+    
+    @staticmethod
+    fn from_tuple(t) {
+        return PointFactory(t[0], t[1])
+    }
+    
+    fn __str__(self) {
+        return t"Point({self.x}, {self.y})"
+    }
+}
+
+p1 = PointFactory.origin()
+p2 = PointFactory.from_tuple((3, 4))
+print(t"\nFactory pattern:")
+print(t"Origin: {p1}")
+print(t"From tuple: {p2}")
+
+# Static method with instance method
+class TempConverter {
+    fn __init__(self, celsius) {
+        self.celsius = celsius
+    }
+    
+    @staticmethod
+    fn c_to_f(c) {
+        return c * 9 / 5 + 32
+    }
+    
+    fn to_fahrenheit(self) {
+        return TempConverter.c_to_f(self.celsius)
+    }
+}
+
+print(t"\nTemperature conversion:")
+print(t"0°C = {TempConverter.c_to_f(0)}°F")
+temp = TempConverter(100)
+print(t"100°C = {temp.to_fahrenheit()}°F")
