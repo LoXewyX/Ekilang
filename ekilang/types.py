@@ -46,9 +46,20 @@ class Fn:
     )  # Default values for parameters
     vararg: Optional[str] = None  # *args parameter name
     vararg_type: Optional[str] = None  # Type annotation for *args
+    kwonlyargs: List[str | None] | None = None
+    kwonlyargs_types: List[str | None] | None = None
+    kw_defaults: List[ExprNode | None] | None = None
     kwarg: Optional[str] = None  # **kwargs parameter name
     kwarg_type: Optional[str] = None  # Type annotation for **kwargs
     decorators: List[ExprNode] | None = field(default=None)  # Decorator expressions
+
+    def __post_init__(self):
+        if self.kwonlyargs is None:
+            self.kwonlyargs = []
+        if self.kwonlyargs_types is None:
+            self.kwonlyargs_types = []
+        if self.kw_defaults is None:
+            self.kw_defaults = []
 
 
 @dataclass
@@ -460,9 +471,20 @@ class AsyncFn:
     )  # Default values for parameters
     vararg: Optional[str] = None  # *args parameter name
     vararg_type: Optional[str] = None  # Type annotation for *args
+    kwonlyargs: List[str | None] | None = None  # Keyword-only parameter names
+    kwonlyargs_types: List[str | None] | None = None
+    kw_defaults: List[ExprNode | None] | None = None  # Defaults for keyword-only
     kwarg: Optional[str] = None  # **kwargs parameter name
     kwarg_type: Optional[str] = None  # Type annotation for **kwargs
     decorators: List[ExprNode] | None = field(default=None)  # Decorator expressions
+
+    def __post_init__(self):
+        if self.kwonlyargs is None:
+            self.kwonlyargs = []
+        if self.kwonlyargs_types is None:
+            self.kwonlyargs_types = []
+        if self.kw_defaults is None:
+            self.kw_defaults = []
 
 
 @dataclass

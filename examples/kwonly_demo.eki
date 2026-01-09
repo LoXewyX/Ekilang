@@ -1,0 +1,27 @@
+# Test keyword-only parameters as shown in the request
+
+fn test_kwonly(a, b, *, c = 3, d = 10) {
+    a + b + c + d
+}
+
+# Call with positional args only (use defaults for keyword-only)
+result1 = test_kwonly(1, 2)
+print(f"test_kwonly(1, 2) = {result1}")  # Should be 16: 1 + 2 + 3 + 10
+
+# Call with keyword args
+result2 = test_kwonly(1, 2, c = 5, d = 20)
+print(f"test_kwonly(1, 2, c=5, d=20) = {result2}")  # Should be 28: 1 + 2 + 5 + 20
+
+# Like compile_module signature
+fn compile_function(
+    mod,
+    *,
+    filename = "<ekilang>",
+    optimize = 0,
+) {
+    f"Module: {mod}, File: {filename}, Optimize: {optimize}"
+}
+
+print(compile_function("MyModule"))
+print(compile_function("MyModule", filename = "test.eki"))
+print(compile_function("MyModule", filename = "test.eki", optimize = 2))

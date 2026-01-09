@@ -5,7 +5,8 @@ Compiles Ekilang AST to Python AST and executes it.
 
 from __future__ import annotations
 import ast
-from typing import Dict, Any, List, Protocol, cast
+from types import CodeType
+from typing import Dict, List, Protocol, cast
 from . import _rust_lexer
 from .types import (
     ExprNode,
@@ -122,11 +123,11 @@ class CodeGen:
 
     def __init__(self) -> None:
         self.lambda_counter = 0
-        self.lambda_defs: list[ast.stmt] = []
+        self.lambda_defs: List[ast.stmt] = []
 
-    def _stmts(self, nodes: list[Statement]) -> list[ast.stmt]:
+    def _stmts(self, nodes: List[Statement]) -> List[ast.stmt]:
         """Convert list of Ekilang statement nodes to Python AST statements."""
-        out: list[ast.stmt] = []
+        out: List[ast.stmt] = []
         for n in nodes:
             conv = self.stmt(n)
             if conv is not None:
@@ -212,7 +213,7 @@ class CodeGen:
             # Block-style lambda: (a, b) => { ... }
             # Create a named function and reference it
             fn_name = self.get_lambda_name()
-            fn_body: list[ast.stmt] = []
+            fn_body: List[ast.stmt] = []
             if node.body is not None:
                 for i, stmt in enumerate(node.body):
                     ast_stmt = self.stmt(stmt)
@@ -289,7 +290,7 @@ class CodeGen:
         if isinstance(node, Call):
             # Support Starred (splat) args
 
-            py_args: list[ast.expr] = []
+            py_args: List[ast.expr] = []
             for a in node.args:
                 if isinstance(a, Starred):
                     py_args.append(
@@ -625,13 +626,13 @@ class CodeGen:
         if isinstance(node, Class):
             # Generate class definition
             bases = cast(
-                list[ast.expr],
+                List[ast.expr],
                 [ast.Name(id=base, ctx=ast.Load()) for base in node.bases],
             )
             class_body = (
                 self._stmts(node.body)
                 if node.body
-                else cast(list[ast.stmt], [ast.Pass()])
+                else cast(List[ast.stmt], [ast.Pass()])
             )
             decorator_list = (
                 [self.expr(d) for d in node.decorators] if node.decorators else []
@@ -649,7 +650,7 @@ class CodeGen:
                 # Multiple names: unpacking assignment
                 # x, y, z = value  ->  x, y, z = value
                 targets = cast(
-                    list[ast.expr],
+                    List[ast.expr],
                     [
                         ast.Tuple(
                             elts=[
@@ -663,7 +664,7 @@ class CodeGen:
             else:
                 # Single name: regular assignment
                 targets = cast(
-                    list[ast.expr],
+                    List[ast.expr],
                     [ast.Name(id=self._safe_name(node.name), ctx=ast.Store())],
                 )
 
@@ -773,8 +774,10 @@ class CodeGen:
                     optional_vars = ast.Name(
                         id=self._safe_name(item.optional_vars), ctx=ast.Store()
                     )
-                items.append(ast.withitem(context_expr=context_expr, optional_vars=optional_vars))
-            
+                items.append(
+                    ast.withitem(context_expr=context_expr, optional_vars=optional_vars)
+                )
+
             return ast.With(
                 items=items,
                 body=self._stmts(node.body),
@@ -788,14 +791,16 @@ class CodeGen:
                     optional_vars = ast.Name(
                         id=self._safe_name(item.optional_vars), ctx=ast.Store()
                     )
-                items.append(ast.withitem(context_expr=context_expr, optional_vars=optional_vars))
+                items.append(
+                    ast.withitem(context_expr=context_expr, optional_vars=optional_vars)
+                )
 
             return ast.AsyncWith(
                 items=items,
                 body=self._stmts(node.body),
             )
         if isinstance(node, For):
-            # node.target is always a list[Name]; use single Name when possible
+            # node.target is always a List[Name]; use single Name when possible
             if len(node.target) == 1:
                 target = ast.Name(
                     id=self._safe_name(node.target[0].id), ctx=ast.Store()
@@ -843,14 +848,25 @@ class CodeGen:
             if node.defaults:
                 defaults_list = [self.expr(cast(ExprNode, d)) for d in node.defaults]
 
+            # Build keyword-only defaults
+            kw_defaults_list: List[ast.expr | None] = []
+            if node.kw_defaults:
+                kw_defaults_list = [
+                    self.expr(d) if d is not None else None for d in node.kw_defaults
+                ]
+
             fn_args = ast.arguments(
                 posonlyargs=[],
                 args=[
                     ast.arg(arg=p, annotation=ast.Constant(t) if t else None)
                     for p, t in zip(node.params, node.param_types)
                 ],
-                kwonlyargs=[],
-                kw_defaults=[],
+                kwonlyargs=[
+                    ast.arg(arg=p, annotation=ast.Constant(t) if t else None)
+                    for p, t in zip(node.kwonlyargs or [], node.kwonlyargs_types or [])
+                    if p is not None
+                ],
+                kw_defaults=kw_defaults_list,
                 defaults=defaults_list,
                 vararg=(
                     ast.arg(
@@ -886,9 +902,16 @@ class CodeGen:
             return fn_def
         if isinstance(node, AsyncFn):
             # Build defaults list
-            defaults_list = []
+            defaults_list: List[ast.expr] = []
             if node.defaults:
                 defaults_list = [self.expr(cast(ExprNode, d)) for d in node.defaults]
+
+            # Build keyword-only defaults
+            kw_defaults_async: List[ast.expr | None] = []
+            if node.kw_defaults:
+                kw_defaults_async = [
+                    self.expr(d) if d is not None else None for d in node.kw_defaults
+                ]
 
             fn_args = ast.arguments(
                 posonlyargs=[],
@@ -896,8 +919,12 @@ class CodeGen:
                     ast.arg(arg=p, annotation=ast.Constant(t) if t else None)
                     for p, t in zip(node.params, node.param_types)
                 ],
-                kwonlyargs=[],
-                kw_defaults=[],
+                kwonlyargs=[
+                    ast.arg(arg=p, annotation=ast.Constant(t) if t else None)
+                    for p, t in zip(node.kwonlyargs or [], node.kwonlyargs_types or [])
+                    if p is not None
+                ],
+                kw_defaults=kw_defaults_async,
                 defaults=defaults_list,
                 vararg=(
                     ast.arg(
@@ -973,10 +1000,14 @@ class CodeGen:
         return ast.Module(body=body, type_ignores=[])
 
 
-def compile_module(mod: Module) -> Any:
+def compile_module(
+    mod: Module,
+    *,
+    filename: str = "<ekilang>",
+    optimize: int = 0,
+) -> CodeType:
     """Compile Ekilang Module to Python bytecode."""
     gen = CodeGen()
     m = gen.module(mod)
     ast.fix_missing_locations(m)
-    code = compile(m, filename="<ekilang>", mode="exec")
-    return code
+    return compile(m, filename=filename, mode="exec", optimize=optimize)

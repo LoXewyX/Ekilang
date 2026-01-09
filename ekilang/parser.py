@@ -334,6 +334,9 @@ class Parser:
             defaults,
             vararg,
             vararg_type,
+            kwonlyargs,
+            kwonlyargs_types,
+            kw_defaults,
             kwarg,
             kwarg_type,
         ) = self._parse_function_params()
@@ -359,6 +362,9 @@ class Parser:
             defaults=defaults if defaults else None,
             vararg=vararg,
             vararg_type=vararg_type,
+            kwonlyargs=kwonlyargs,
+            kwonlyargs_types=kwonlyargs_types,
+            kw_defaults=kw_defaults,
             kwarg=kwarg,
             kwarg_type=kwarg_type,
             decorators=decorators,
@@ -379,9 +385,18 @@ class Parser:
         name = self.match("ID").value
         self.match("(")
 
-        params, param_types, defaults, vararg, vararg_type, kwarg, kwarg_type = (
-            self._parse_function_params()
-        )
+        (
+            params,
+            param_types,
+            defaults,
+            vararg,
+            vararg_type,
+            kwonlyargs,
+            kwonlyargs_types,
+            kw_defaults,
+            kwarg,
+            kwarg_type,
+        ) = self._parse_function_params()
 
         return_type = None
         if self.accept("OP", "->"):
@@ -406,6 +421,9 @@ class Parser:
             defaults=defaults if defaults else None,
             vararg=vararg,
             vararg_type=vararg_type,
+            kwonlyargs=kwonlyargs,
+            kwonlyargs_types=kwonlyargs_types,
+            kw_defaults=kw_defaults,
             kwarg=kwarg,
             kwarg_type=kwarg_type,
             decorators=decorators,
@@ -1097,21 +1115,29 @@ class Parser:
         List[ExprNode | None],
         str | None,
         str | None,
+        List[str | None],
+        List[str | None],
+        List[ExprNode | None],
         str | None,
         str | None,
     ]:
-        """Parse function parameters including *args and **kwargs.
+        """Parse function parameters including *args, keyword-only, and **kwargs.
 
         Returns:
-            Tuple of (params, param_types, defaults, vararg, vararg_type, kwarg, kwarg_type)
+            Tuple of (params, param_types, defaults, vararg, vararg_type,
+                     kwonlyargs, kwonlyargs_types, kw_defaults, kwarg, kwarg_type)
         """
         params: List[str] = []
         param_types: List[str | None] = []
         defaults: List[ExprNode | None] = []
         vararg: str | None = None
         vararg_type: str | None = None
+        kwonlyargs: List[str | None] = []
+        kwonlyargs_types: List[str | None] = []
+        kw_defaults: List[ExprNode | None] = []
         kwarg: str | None = None
         kwarg_type: str | None = None
+        in_kwonly = False  # After bare * or *args, we're in keyword-only territory
 
         if not self.accept(")"):
             while True:
@@ -1119,12 +1145,24 @@ class Parser:
                 if tok.type == "OP":
                     if tok.value == "*":
                         self.match("OP", "*")
-                        vararg = self.match("ID").value
-                        vararg_type = self.parse_type() if self.accept(":") else None
-                        if self.accept(")"):
-                            break
-                        self.match(",")
-                        continue
+                        # Check if this is a bare * (keyword-only separator) or *args
+                        next_tok = self.peek()
+                        if next_tok.type == "ID":
+                            # *args case
+                            vararg = self.match("ID").value
+                            vararg_type = self.parse_type() if self.accept(":") else None
+                            in_kwonly = True  # After *args, we're in keyword-only
+                            if self.accept(")"):
+                                break
+                            self.match(",")
+                            continue
+                        else:
+                            # Bare * - keyword-only separator
+                            in_kwonly = True
+                            if self.accept(")"):
+                                break
+                            self.match(",")
+                            continue
                     if tok.value == "**":
                         self.match("OP", "**")
                         kwarg = self.match("ID").value
@@ -1134,26 +1172,49 @@ class Parser:
                         self.match(",")
                         continue
 
-                # Regular parameter
+                # Regular parameter or keyword-only parameter
                 param_name = self.match("ID").value
                 param_type = self.parse_type() if self.accept(":") else None
-                params.append(param_name)
-                param_types.append(param_type)
 
-                if self.accept("OP", "="):
-                    default_val = self.expr()
-                    defaults.append(default_val)
-                elif defaults:
-                    raise SyntaxError(
-                        f"Non-default parameter after default at "
-                        f"{self.peek().line}:{self.peek().col}"
-                    )
+                if in_kwonly:
+                    # This is a keyword-only parameter
+                    kwonlyargs.append(param_name)
+                    kwonlyargs_types.append(param_type)
+                    if self.accept("OP", "="):
+                        default_val = self.expr()
+                        kw_defaults.append(default_val)
+                    else:
+                        kw_defaults.append(None)
+                else:
+                    # Regular positional parameter
+                    params.append(param_name)
+                    param_types.append(param_type)
+
+                    if self.accept("OP", "="):
+                        default_val = self.expr()
+                        defaults.append(default_val)
+                    elif defaults:
+                        raise SyntaxError(
+                            f"Non-default parameter after default at "
+                            f"{self.peek().line}:{self.peek().col}"
+                        )
 
                 if self.accept(")"):
                     break
                 self.match(",")
 
-        return params, param_types, defaults, vararg, vararg_type, kwarg, kwarg_type
+        return (
+            params,
+            param_types,
+            defaults,
+            vararg,
+            vararg_type,
+            kwonlyargs,
+            kwonlyargs_types,
+            kw_defaults,
+            kwarg,
+            kwarg_type,
+        )
 
     def _parse_list_literal_or_comp(self) -> ListComp | ListLit:
         """Parse list literal or list comprehension."""

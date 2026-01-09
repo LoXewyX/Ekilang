@@ -2,6 +2,7 @@
 
 import os
 import gc
+from collections import OrderedDict
 from typing import Any, Dict
 from .parser import Parser
 from .runtime import compile_module
@@ -9,12 +10,45 @@ from .lexer import Lexer
 from .types import Module, Statement, Use
 from .builtins import BUILTINS
 
+_CODE_CACHE_LIMIT = 32
+CODE_CACHE: OrderedDict[str, tuple[float | None, Any]] = OrderedDict()
+
+
+def _get_mtime(path: str) -> float | None:
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return None
+
+
+def _store_code(key: str, mtime: float | None, code: Any) -> None:
+    if mtime is None:
+        return
+    CODE_CACHE[key] = (mtime, code)
+    CODE_CACHE.move_to_end(key)
+    if len(CODE_CACHE) > _CODE_CACHE_LIMIT:
+        CODE_CACHE.popitem(last=False)
+
+
+ModuleCacheEntry = tuple[float | None, Dict[str, Any], str]
+MODULE_CACHE: Dict[str, ModuleCacheEntry] = {}
+
+
+def _resolve_optimize(optimize: int | None) -> int:
+    try:
+        env_val = int(os.environ.get("EKILANG_OPTIMIZE", "0") or 0)
+    except ValueError:
+        env_val = 0
+    level = optimize if optimize is not None else env_val
+    return max(0, min(2, level))
+
 
 def execute(
     mod: Module,
     globals_ns: Dict[str, Any] | None = None,
     current_file: str | None = None,
     code_obj: Any = None,
+    optimize: int | None = None,
 ) -> Dict[str, Any]:
     """Execute Ekilang module.
 
@@ -32,7 +66,6 @@ def execute(
     # If code_obj provided, skip parsing and go straight to execution
     if code_obj is not None:
         ns = globals_ns if globals_ns is not None else {}
-        # Only inject builtins once when marker is absent
         if not ns.get("__ekilang_builtins_loaded__"):
             ns.update(BUILTINS)
             ns["__ekilang_builtins_loaded__"] = True
@@ -92,16 +125,38 @@ def execute(
     mod_filtered = Module(body=filtered_body)
 
     # Standard execution path
-    code = compile_module(mod_filtered)
+    opt_level = _resolve_optimize(optimize)
+    code: Any | None = None
+    cache_key: str | None = None
+    mtime: float | None = None
+    abs_file: str | None = os.path.abspath(current_file) if current_file else None
+
+    if abs_file and os.path.isfile(abs_file):
+        mtime = _get_mtime(abs_file)
+        cache_key = f"{abs_file}:{opt_level}"
+        cached = CODE_CACHE.get(cache_key)
+        if cached and cached[0] == mtime:
+            CODE_CACHE.move_to_end(cache_key)
+            code = cached[1]
+        elif cached:
+            CODE_CACHE.pop(cache_key, None)
+
+    if code is None:
+        code = compile_module(
+            mod_filtered,
+            filename=abs_file or "<ekilang>",
+            optimize=opt_level,
+        )
+        if cache_key:
+            _store_code(cache_key, mtime, code)
     ns: Dict[str, Any] = {}
     ns.update(BUILTINS)
     ns.update(imports_ns)  # Add imported items
     if globals_ns:
         ns.update(globals_ns)
     # Set __file__ if current_file is provided
-    if current_file is not None:
-
-        ns["__file__"] = os.path.abspath(current_file)
+    if abs_file is not None:
+        ns["__file__"] = abs_file
     # Only set __name__ to '__main__' if not already set (i.e., for main script)
     if "__name__" not in ns:
         ns["__name__"] = "__main__"
@@ -109,10 +164,6 @@ def execute(
     exec(code, ns, ns)  # pylint: disable=exec-used
     gc.collect()
     return ns
-
-
-# Module cache for imported .eki files (can be disabled for low-memory environments)
-MODULE_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def load_ekilang_module(
@@ -136,8 +187,13 @@ def load_ekilang_module(
     """
     # os, Lexer, Parser imported at module level
 
-    if module_path in MODULE_CACHE:
-        return MODULE_CACHE[module_path]
+    cached = MODULE_CACHE.get(module_path)
+    if cached:
+        cached_mtime, cached_ns, cached_path = cached
+        current_mtime = _get_mtime(cached_path)
+        if cached_mtime is None or current_mtime == cached_mtime:
+            return cached_ns
+        MODULE_CACHE.pop(module_path, None)
 
     # Handle relative imports
     if module_path.startswith("."):
@@ -225,7 +281,7 @@ def load_ekilang_module(
         parsed, globals_ns={"__name__": module_name}, current_file=file_path
     )
 
-    # Cache it
-    MODULE_CACHE[module_path] = module_ns
+    mtime_store = _get_mtime(file_path)
+    MODULE_CACHE[module_path] = (mtime_store, module_ns, file_path)
 
     return module_ns
