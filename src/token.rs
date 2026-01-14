@@ -153,7 +153,7 @@ impl Token {
 pub static KEYWORDS: &[&str] = &[
     "fn", "async", "await", "use", "as", "if", "elif", "else", "match", "while", "loop", "return",
     "yield", "for", "in", "true", "false", "none", "and", "or", "not", "is", "break", "continue",
-    "class", "try", "except", "finally", "with",
+    "class", "try", "except", "finally", "with", "global", "nonlocal",
 ];
 
 pub fn is_keyword(s: &str) -> bool {

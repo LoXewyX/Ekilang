@@ -65,6 +65,8 @@ from .types import (
     NamedExpr,
     Try,
     ExceptHandler,
+    Global,
+    Nonlocal,
 )
 from .lexer import Token, Lexer
 from ._rust_lexer import (
@@ -140,7 +142,7 @@ class Parser:
                     return self.for_stmt()
                 if tok.value == "with":
                     return self.with_stmt()
-                if tok.value in {"break", "continue", "yield", "return"}:
+                if tok.value in {"break", "continue", "yield", "return", "global", "nonlocal"}:
                     return self._parse_simple_stmt(tok.value)
                 if tok.value == "async":
                     next_tok = (
@@ -199,14 +201,25 @@ class Parser:
         self.accept("NL")
         return body
 
-    def _parse_simple_stmt(self, keyword: str) -> Break | Continue | Yield | Return:
-        """Parse break, continue, yield, or return statements."""
+    def _parse_simple_stmt(self, keyword: str) -> Break | Continue | Yield | Return | Global | Nonlocal:
+        """Parse break, continue, yield, return, global, or nonlocal statements."""
         self.match("KW", keyword)
 
         # Fast path for break/continue (no expression)
         if keyword in ("break", "continue"):
             self.accept("NL")
             return Break() if keyword == "break" else Continue()
+
+        # Handle global and nonlocal - parse names
+        if keyword in ("global", "nonlocal"):
+            names: List[str] = []
+            # Parse first name
+            names.append(self.match("ID").value)
+            # Parse additional names separated by comma
+            while self.accept(","):
+                names.append(self.match("ID").value)
+            self.accept("NL")
+            return Global(names) if keyword == "global" else Nonlocal(names)
 
         # yield and return have optional expressions
         if self.peek().type in ("NL", "EOF", "}"):

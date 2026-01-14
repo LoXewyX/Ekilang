@@ -176,6 +176,20 @@ class Yield:
 
 
 @dataclass
+class Global:
+    """Global statement to declare global variables."""
+
+    names: List[str]
+
+
+@dataclass
+class Nonlocal:
+    """Nonlocal statement to declare nonlocal variables."""
+
+    names: List[str]
+
+
+@dataclass
 class ExprStmt:
     """Expression statement for standalone expressions."""
 
@@ -542,6 +556,8 @@ Statement = (
     | Let
     | ExprStmt
     | Try
+    | Global
+    | Nonlocal
 )
 
 Body = List[List[Statement]]

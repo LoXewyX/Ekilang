@@ -117,6 +117,8 @@ pub fn is_statement_keyword(kw: &str) -> bool {
             | "loop"
             | "try"
             | "let"
+            | "global"
+            | "nonlocal"
     )
 }
 

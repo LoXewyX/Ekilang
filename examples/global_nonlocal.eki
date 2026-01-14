@@ -1,0 +1,189 @@
+# Global and Nonlocal Variable Scope Examples with Error Handling
+
+print("=== Global Variable Examples ===\n")
+
+# Example 1: Simple global modification
+counter = 0
+
+fn increment() {
+    global counter
+    counter = counter + 1
+}
+
+try {
+    print("Initial counter:", counter)
+    increment()
+    print("After increment():", counter)
+    increment()
+    print("After another increment():", counter)
+}
+except Exception as e {
+    print("Error in increment demo:", e)
+}
+
+print()
+
+# Example 2: Multiple global variables
+x = 10
+y = 20
+
+fn swap_globals() {
+    global x, y
+    temp = x
+    x = y
+    y = temp
+}
+
+try {
+    print("Before swap: x =", x, ", y =", y)
+    swap_globals()
+    print("After swap: x =", x, ", y =", y)
+}
+except Exception as e {
+    print("Error during swap:", e)
+}
+
+print()
+
+# Example 3: Global list management
+items = []
+
+fn add_item(item) {
+    global items
+    items.append(item)
+}
+
+fn clear_items() {
+    global items
+    items = []
+}
+
+try {
+    add_item("apple")
+    add_item("banana")
+    add_item("orange")
+    print("Items:", items)
+    clear_items()
+    print("After clear:", items)
+}
+except Exception as e {
+    print("Error managing items:", e)
+}
+
+print("\n=== Nonlocal Variable Examples ===\n")
+
+# Example 4: Simple closure with nonlocal
+fn make_adder(base) {
+    fn adder(x) {
+        return base + x
+    }
+    return adder
+}
+
+try {
+    add_5 = make_adder(5)
+    add_10 = make_adder(10)
+    print("add_5(3):", add_5(3))
+    print("add_10(3):", add_10(3))
+}
+except Exception as e {
+    print("Error with closure:", e)
+}
+
+print()
+
+# Example 5: State-preserving counter
+fn create_counter(start = 0) {
+    count = start
+    
+    fn increment() {
+        nonlocal count
+        count = count + 1
+        return count
+    }
+    
+    fn decrement() {
+        nonlocal count
+        count = count - 1
+        return count
+    }
+    
+    fn get() {
+        nonlocal count
+        return count
+    }
+    
+    return (increment, decrement, get)
+}
+
+try {
+    counter1_inc, counter1_dec, counter1_get = create_counter(0)
+    counter2_inc, counter2_dec, counter2_get = create_counter(100)
+    print("Counter 1 - get:", counter1_get())
+    print("Counter 1 - increment:", counter1_inc())
+    print("Counter 1 - increment:", counter1_inc())
+    print("Counter 1 - decrement:", counter1_dec())
+    print("\nCounter 2 - get:", counter2_get())
+    print("Counter 2 - increment:", counter2_inc())
+    print("Counter 2 - get:", counter2_get())
+}
+except Exception as e {
+    print("Error with counter:", e)
+}
+
+print()
+
+# Example 6: Nested nonlocal modification
+fn outer() {
+    a = 1
+    b = 2
+    
+    fn middle() {
+        fn inner() {
+            nonlocal a, b
+            a = a * 10
+            b = b * 10
+        }
+        inner()
+    }
+    
+    middle()
+    return (a, b)
+}
+
+try {
+    result = outer()
+    print("Nested nonlocal result:", result)
+}
+except Exception as e {
+    print("Error with nested nonlocal:", e)
+}
+
+print()
+
+# Example 7: Global and nonlocal together
+global_state = 0
+
+fn create_processor() {
+    local_state = 100
+    
+    fn process(value) {
+        global global_state
+        nonlocal local_state
+        global_state = global_state + value
+        local_state = local_state - value
+        return (global_state, local_state)
+    }
+    
+    return process
+}
+
+try {
+    processor = create_processor()
+    print("Process 5:", processor(5))
+    print("Process 3:", processor(3))
+    print("Global state:", global_state)
+}
+except Exception as e {
+    print("Error with combined global/nonlocal:", e)
+}

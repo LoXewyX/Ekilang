@@ -63,6 +63,8 @@ from .types import (
     Yield,
     NamedExpr,
     Try,
+    Global,
+    Nonlocal,
 )
 
 
@@ -842,6 +844,10 @@ class CodeGen:
             return ast.Break()
         if isinstance(node, Continue):
             return ast.Continue()
+        if isinstance(node, Global):
+            return ast.Global(names=node.names)
+        if isinstance(node, Nonlocal):
+            return ast.Nonlocal(names=node.names)
         if isinstance(node, Fn):
             # Build defaults list
             defaults_list = []
